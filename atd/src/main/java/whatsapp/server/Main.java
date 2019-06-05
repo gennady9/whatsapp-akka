@@ -11,7 +11,7 @@ import com.typesafe.config.ConfigFactory;
 
 public class Main {
   public static void main(String[] args) {
-    final ActorSystem system = ActorSystem.create("server", ConfigFactory.load("managingServer"));
+    final ActorSystem system = ActorSystem.create("server", ConfigFactory.load("server"));
     try {
       //#create-actors
       final ActorRef printerActor = 
