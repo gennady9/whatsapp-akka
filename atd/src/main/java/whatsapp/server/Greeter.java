@@ -1,9 +1,9 @@
-package whatsapp;
+package whatsapp.server;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
-import whatsapp.Printer.Greeting;
+import whatsapp.server.Printer.Greeting;
 
 //#greeter-messages
 public class Greeter extends AbstractActor {

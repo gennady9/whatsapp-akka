@@ -1,9 +1,9 @@
-package whatsapp;
+package whatsapp.server;
 
 import java.io.IOException;
 
-import whatsapp.Greeter.Greet;
-import whatsapp.Greeter.WhoToGreet;
+import whatsapp.server.Greeter.Greet;
+import whatsapp.server.Greeter.WhoToGreet;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;

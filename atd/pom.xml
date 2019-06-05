@@ -58,7 +58,7 @@
                             <arguments>
                                 <argument>-classpath</argument>
                                 <classpath />
-                                <argument>whatsapp.Main</argument>
+                                <argument>whatsapp.server.Main</argument>
                             </arguments>
                         </configuration>
                     </plugin>
@@ -87,7 +87,7 @@
                             <arguments>
                                 <argument>-classpath</argument>
                                 <classpath />
-                                <argument>whatsapp.Main</argument>
+                                <argument>whatsapp.client.Main</argument>
                             </arguments>
                         </configuration>
                     </plugin>

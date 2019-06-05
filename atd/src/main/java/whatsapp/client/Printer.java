@@ -1,4 +1,4 @@
-package whatsapp;
+package whatsapp.client;
 
 import akka.actor.AbstractActor;
 import akka.actor.Props;
