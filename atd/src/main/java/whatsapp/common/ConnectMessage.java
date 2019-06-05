@@ -11,4 +11,11 @@ public class ConnectMessage implements Serializable {
         this.username = username;
         this.userActor = actor;
     }
+
+    public String getUsername() {
+        return this.username;
+    }
+    public ActorRef getUserActor() {
+        return this.userActor;
+    }
 }
