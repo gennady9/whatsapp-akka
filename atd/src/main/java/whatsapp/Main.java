@@ -1,9 +1,9 @@
-package atd192;
+package whatsapp;
 
 import java.io.IOException;
 
-import atd192.Greeter.Greet;
-import atd192.Greeter.WhoToGreet;
+import whatsapp.Greeter.Greet;
+import whatsapp.Greeter.WhoToGreet;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;

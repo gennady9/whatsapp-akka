@@ -1,9 +1,9 @@
-package atd192;
+package whatsapp;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
-import atd192.Printer.Greeting;
+import whatsapp.Printer.Greeting;
 
 //#greeter-messages
 public class Greeter extends AbstractActor {
