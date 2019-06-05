@@ -3,7 +3,6 @@ package whatsapp.client;
 import akka.actor.AbstractActor;
 // import akka.actor.ActorRef;
 import akka.actor.Props;
-import whatsapp.server.Server.connectUser;
 import akka.actor.ActorSelection;
 
 //#User-messages
@@ -31,14 +30,14 @@ public class User extends AbstractActor {
   @Override
   public Receive createReceive() {
     return receiveBuilder()
-        .match(Connect.class, x -> {
-          //#connect-send-message
-          System.out.println("matched with connect");
-          ActorSelection selection =
-          getContext().actorSelection("akka.tcp://app@10.0.0.1:2552/whatsapp/server/Server");            
-          selection.tell(new connectUser("test", getSelf()), getSelf());
-          //#connect-send-message
-        })
+  //       .match(Connect.class, x -> {
+  //         //#connect-send-message
+  //         System.out.println("matched with connect");
+  //         ActorSelection selection =
+  //         getContext().actorSelection("akka.tcp://app@10.0.0.1:2552/whatsapp/server/Server");            
+  //         selection.tell(new connectUser("test", getSelf()), getSelf());
+  //         //#connect-send-message
+  //       })
         .build();
   }
 

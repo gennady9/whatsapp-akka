@@ -7,10 +7,11 @@ import whatsapp.server.Greeter.WhoToGreet;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import com.typesafe.config.ConfigFactory;
 
 public class Main {
   public static void main(String[] args) {
-    final ActorSystem system = ActorSystem.create("helloakka");
+    final ActorSystem system = ActorSystem.create("server", ConfigFactory.load("managingServer"));
     try {
       //#create-actors
       final ActorRef printerActor = 
