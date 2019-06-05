@@ -7,6 +7,7 @@ import akka.event.LoggingAdapter;
 import java.util.HashMap;
 import akka.actor.ActorRef;
 import whatsapp.common.ConnectMessage;
+import whatsapp.common.DisconnectMessage;
 
 public class ManagingServer extends AbstractActor {
     private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -19,10 +20,16 @@ public class ManagingServer extends AbstractActor {
     @Override
     public Receive createReceive() {
         return receiveBuilder()
-            .match(ConnectMessage.class, connectMessage -> {
-                log.info(connectMessage.getUsername());
-                })
+            .match(ConnectMessage.class, this::connectUser)
+            .match(DisconnectMessage.class, this::disconnectUser)
             .build();
     }
 
+    private void connectUser(ConnectMessage connectMessage) {
+        log.info(connectMessage.getUsername()); //TODO
+    }
+
+    private void disconnectUser(DisconnectMessage disconnectMessage) {
+        log.info(disconnectMessage.getUsername()); //TODO
+    }
 }
