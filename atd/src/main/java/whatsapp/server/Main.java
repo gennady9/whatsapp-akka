@@ -9,7 +9,7 @@ import whatsapp.server.ManagingServer;
 
 public class Main {
   public static void main(String[] args) {
-    final ActorSystem system = ActorSystem.create("server", ConfigFactory.load("server"));
+    final ActorSystem system = ActorSystem.create("whatsapp", ConfigFactory.load("server"));
     try {
       final ActorRef managingServerActor = system.actorOf(ManagingServer.props(), "managingServer");
 

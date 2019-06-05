@@ -29,11 +29,9 @@ public class User extends AbstractActor {
   String username;
   // HashMap<String, ActorRef> groups = new HashMap<String, ActorRef>();
   final ActorSelection managerServer = 
-    getContext().actorSelection("akka.tcp://server@127.0.0.1:3553/user/server");
-    // getContext().actorSelection("akka://server@127.0.0.1:3553/user/server");
-    // getContext().actorSelection("akka://whatsapp@127.0.0.1:3553/user/server");
+    getContext().actorSelection("akka://whatsapp@127.0.0.1:3553/user/server");
     
-  final static Timeout timeout_time = new Timeout(Duration.create(2, TimeUnit.SECONDS));
+  final static Timeout timeout_time = new Timeout(Duration.create(1, TimeUnit.SECONDS));
   LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 // Props
@@ -47,7 +45,7 @@ public class User extends AbstractActor {
     try {
       Object res = Await.result(future, timeout_time.duration());
       if(res instanceof connectSuccess){
-        log.info("Connection successed!");
+        log.info(username + " has connected successfully!");
         this.username = username;
       }else{
         // TODO: handle username is taken error

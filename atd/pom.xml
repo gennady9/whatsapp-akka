@@ -31,9 +31,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-remote_2.12</artifactId>
-            <version>2.5.23</version>
+        <groupId>com.typesafe.akka</groupId>
+        <artifactId>akka-remote_2.12</artifactId>
+        <version>${akka.version}</version>
         </dependency>
     </dependencies>
     <profiles>

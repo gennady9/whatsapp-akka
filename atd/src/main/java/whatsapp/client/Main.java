@@ -15,7 +15,7 @@ import java.util.Scanner;
 
 public class Main {
   public static void main(String[] args) {
-    final ActorSystem system = ActorSystem.create("client", ConfigFactory.load("user"));
+    final ActorSystem system = ActorSystem.create("client", ConfigFactory.load("client"));
     try {
       //#create-actors
       final ActorRef userActor = 
