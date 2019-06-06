@@ -2,6 +2,8 @@ package whatsapp.client;
 
 // Package internal imports
 import whatsapp.common.ConnectMessage;
+import whatsapp.common.ActionFailed;
+import whatsapp.common.ActionSuccess;
 import whatsapp.server.ManagingServer;
 // Akka imports
 import akka.actor.AbstractActor;
@@ -44,10 +46,15 @@ public class User extends AbstractActor {
     Future<Object> future = Patterns.ask(managerServer, new ConnectMessage(username, getSelf()), timeout_time); 
     try {
       Object res = Await.result(future, timeout_time.duration());
-      if(res instanceof connectSuccess){
-        log.info(username + " has connected successfully!");
+      if(res instanceof ActionSuccess){
         this.username = username;
-      }else{
+        ActionSuccess actionRes = (ActionSuccess)res;
+        log.info(actionRes.getMessage());
+      } else if(res instanceof ActionFailed){
+        ActionFailed actionRes = (ActionFailed)res;
+        log.info(actionRes.getError());
+      }
+      else{
         // TODO: handle username is taken error
         log.info("Connection failed!"); // TODO: maybe change to message?
       }
@@ -55,14 +62,6 @@ public class User extends AbstractActor {
       log.info("“server is offline! error= " + error);
     }
   }
-
-
- public static class connectSuccess implements Serializable{
-   String message;
-   public connectSuccess(String message){
-     this.message = message;
-   }
- }
   
   @Override
   public Receive createReceive() {

@@ -9,10 +9,16 @@ import java.util.Optional;
 import akka.actor.ActorRef;
 import whatsapp.common.ConnectMessage;
 import whatsapp.common.DisconnectMessage;
+import whatsapp.common.ActionFailed;
+import whatsapp.common.ActionSuccess;
 
 public class ManagingServer extends AbstractActor {
     private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
     private HashMap<String, ActorRef> connectedUsers;
+
+    public ManagingServer() {
+        this.connectedUsers = new HashMap<String, ActorRef>();
+    }
 
     static public Props props() {
         return Props.create(ManagingServer.class, ManagingServer::new);
@@ -27,7 +33,18 @@ public class ManagingServer extends AbstractActor {
     }
 
     private void connectUser(ConnectMessage connectMessage) {
-        log.info(connectMessage.getUsername()); //TODO
+        String message;
+        if (this.connectedUsers.containsKey(connectMessage.getUsername())) {
+            message = String.format("%s already exists.", connectMessage.getUsername());
+            getSender().tell(new ActionFailed(
+                    message), getSelf());
+        } else {
+            this.connectedUsers.put(connectMessage.getUsername(), connectMessage.getUserActor());
+            message = String.format("%s has connected successfully.", connectMessage.getUsername());
+            getSender().tell(new ActionSuccess(message), getSelf());
+        }
+
+        log.info(message);
     }
 
     private void disconnectUser(DisconnectMessage disconnectMessage) {
