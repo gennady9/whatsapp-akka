@@ -92,6 +92,10 @@ public class GroupActor extends AbstractActor {
         .scheduleOnce(
         Duration.ofMillis(message.getSeconds() * 1000),
           () -> {
+            if(this.mutedUsers.contains(target)){
+                this.mutedUsers.remove(target);
+            }
+
             this.router = this.router.addRoutee(new ActorRefRoutee(message.getTargetActor()));
             message.getTargetActor().tell(new GroupTextMessage(username, this.groupName,
                     "You have been unmuted! Muting time is up!"),
