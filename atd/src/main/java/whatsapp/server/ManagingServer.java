@@ -14,6 +14,9 @@ import whatsapp.common.ActionSuccess;
 import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.CreateGroupMessage;
 import whatsapp.common.GetUserDestMessage;
+import whatsapp.common.GroupFileMessage;
+import whatsapp.common.GroupTextMessage;
+import whatsapp.common.MuteUserMessage;
 
 public class ManagingServer extends AbstractActor {
     private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -36,6 +39,9 @@ public class ManagingServer extends AbstractActor {
             .match(CreateGroupMessage.class, this::createGroup)
             .match(LeaveGroupMessage.class, this::leaveGroup)
             .match(GetUserDestMessage.class, this::getUserDest)
+            .match(MuteUserMessage.class, this::handleMuteUser)
+            .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
+            .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
             .build();
     }
 
@@ -55,7 +61,7 @@ public class ManagingServer extends AbstractActor {
     private void getUserDest(GetUserDestMessage getUserDestMessage) {
         if (!this.connectedUsers.containsKey(getUserDestMessage.getUsername())) {
             getSender().tell(new ActionFailed(
-                    String.format("No such user %s.", getUserDestMessage.getUsername())), getSelf());
+                    String.format("%s does not exist!", getUserDestMessage.getUsername())), getSelf());
 
             return;
         }
@@ -65,6 +71,39 @@ public class ManagingServer extends AbstractActor {
     }
 
     private void leaveGroup(LeaveGroupMessage leaveGroupMessage) {
+        String user = leaveGroupMessage.getUsername(); // TODO::
+        // if()
+    }
+
+    private void handleGroupForward(String groupName, Object message){
+        if (!this.groups.containsKey(groupName)) {
+            getSender().tell(new ActionFailed(
+                    String.format("%s does not exist!", groupName)), getSelf());
+
+            return;
+        }
+
+        groups.get(groupName).forward(message, getContext());
+    }
+
+    private void handleMuteUser(MuteUserMessage message){
+        String groupName = message.getGroupName();
+        String target = message.getTarget();
+        if (!this.groups.containsKey(groupName)) {
+            getSender().tell(new ActionFailed(
+                    String.format("%s does not exist!", groupName)), getSelf());
+
+            return;
+        } else if (!this.connectedUsers.containsKey(target)) {
+            getSender().tell(new ActionFailed(
+                    String.format("%s does not exist!", target)), getSelf());
+
+            return;
+        }
+
+        message.setTargetActor(this.connectedUsers.get(target));
+
+        groups.get(groupName).forward(message, getContext());
     }
 
     private void connectUser(ConnectMessage connectMessage) {
