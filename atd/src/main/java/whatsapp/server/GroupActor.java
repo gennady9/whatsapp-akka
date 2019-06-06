@@ -12,6 +12,8 @@ import whatsapp.common.DisconnectMessage;
 import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
 import whatsapp.common.CreateGroupMessage;
+import whatsapp.common.GroupTextMessage;
+import whatsapp.common.GroupFileMessage;
 import akka.routing.ActorRefRoutee;
 import akka.routing.BroadcastRoutingLogic;
 import akka.routing.Router;
@@ -43,6 +45,8 @@ public class GroupActor extends AbstractActor {
     public Receive createReceive() {
         return receiveBuilder()
             .match(CreateGroupMessage.class, this::createGroup)
+            .match(GroupTextMessage.class, msg -> router.route(msg, getSelf()))
+            .match(GroupFileMessage.class, msg -> router.route(msg, getSelf()))
             .build();
     }
 
