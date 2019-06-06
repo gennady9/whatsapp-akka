@@ -13,6 +13,7 @@ import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
 import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.CreateGroupMessage;
+import whatsapp.common.GetUserDestMessage;
 
 public class ManagingServer extends AbstractActor {
     private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -34,6 +35,7 @@ public class ManagingServer extends AbstractActor {
             .match(DisconnectMessage.class, this::disconnectUser)
             .match(CreateGroupMessage.class, this::createGroup)
             .match(LeaveGroupMessage.class, this::leaveGroup)
+            .match(GetUserDestMessage.class, this::getUserDest)
             .build();
     }
 
@@ -48,6 +50,18 @@ public class ManagingServer extends AbstractActor {
         ActorRef newGroupActor = getContext().actorOf(GroupActor.props(createGroupMessage.getName(), createGroupMessage.getAdmin()), createGroupMessage.getName());
         this.groups.put(createGroupMessage.getName(), newGroupActor);
         newGroupActor.forward(createGroupMessage, getContext());
+    }
+
+    private void getUserDest(GetUserDestMessage getUserDestMessage) {
+        if (!this.connectedUsers.containsKey(getUserDestMessage.getUsername())) {
+            getSender().tell(new ActionFailed(
+                    String.format("No such user %s.", getUserDestMessage.getUsername())), getSelf());
+
+            return;
+        }
+
+        ActorRef target = this.connectedUsers.get(getUserDestMessage.getUsername());
+        getSender().tell(target, getSelf());
     }
 
     private void leaveGroup(LeaveGroupMessage leaveGroupMessage) {
