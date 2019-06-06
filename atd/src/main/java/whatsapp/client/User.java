@@ -3,6 +3,7 @@ package whatsapp.client;
 // Package internal imports
 import whatsapp.common.ConnectMessage;
 import whatsapp.common.DisconnectMessage;
+import whatsapp.common.GetUserDestMessage;
 import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
 import whatsapp.server.ManagingServer;
@@ -21,8 +22,16 @@ import akka.event.LoggingAdapter;
 // Java imports
 import java.util.HashMap;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 // import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.io.IOException;
+
 
 
 public class User extends AbstractActor {
@@ -42,6 +51,7 @@ public class User extends AbstractActor {
   }
 
   // ------------Behaviours / "Methods"------------
+  // Client related
   static public class ClientConnectMessage {
     public final String username;
     public ClientConnectMessage(String username) {
@@ -52,12 +62,61 @@ public class User extends AbstractActor {
     public ClientDisconnectMessage() {}
   }
 
+  static public class ClientSendText{
+    String target_name;
+    String text;
+    public ClientSendText(String target_name, String text){
+      this.target_name = target_name;
+      this.text = text;
+    }
+  }
+  static public class ClientSendFile{
+    String target_name;
+    byte[] file;
+    public ClientSendFile(String target_name, byte[] file){
+      this.target_name = target_name;
+      this.file = file;
+    }
+  }
+
+
+  static public class UserTextMessage implements Serializable {
+    String source;
+    String message;
+    public UserTextMessage(String source, String message) {
+        this.source = source;
+        this.message = message;
+    }
+    public String getMessage() { // TODO: maybe eval time at message creation and not at "get"?
+        return (getTime() + "[user][" + source + "]" + message);
+    }
+  }
+
+  static public class UserFileMessage implements Serializable {
+    String source;
+    byte[] file;
+    public UserFileMessage(String source, byte[] file) {
+        this.source = source;
+        this.file = file;
+    }
+    // public String getData() { // TODO: maybe eval time at message creation and not at "get"?
+        // return (getTime() + "[user][" + source + "] File received: " + file);
+  }
+
+
+
+
+
   //  ------------createReceive - actions handeling------------ 
   @Override
   public Receive createReceive() {
     return receiveBuilder()
         .match(ClientConnectMessage.class, x -> connectUser(x.username))
         .match(ClientDisconnectMessage.class, x -> disconnectUser())
+        .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
+        .match(ClientSendFile.class, x -> sendUserFile(x.target_name, x.file))
+        .match(UserTextMessage.class, x -> { log.info(x.getMessage()); })
+        .match(UserFileMessage.class, x -> printFile(x.source, x.file))
         .build();
   }
 
@@ -82,12 +141,11 @@ public class User extends AbstractActor {
       }
     }
   
-    private void disconnectUser(){
+    private void disconnectUser(){ // TODO: Area51
       Future<Object> future = Patterns.ask(managerServer, new DisconnectMessage(username), timeout_time); 
       try {
         Object res = Await.result(future, timeout_time.duration());
         if(res instanceof ActionSuccess){
-          this.username = username;
           ActionSuccess actionRes = (ActionSuccess)res;
           log.info(actionRes.getMessage());
         } else if(res instanceof ActionFailed){
@@ -102,13 +160,48 @@ public class User extends AbstractActor {
       }
     }
 
+    private void sendUserText(String target_name, String text){
+      ActorRef targetActorRef = getTargetRef(target_name);
+      if(targetActorRef == null) { return; }
+      targetActorRef.tell(new UserTextMessage(username, text), getSelf());
+    }
+    private void sendUserFile(String target_name, byte[] file){
+      ActorRef targetActorRef = getTargetRef(target_name);
+      if(targetActorRef == null) { return; }
+      targetActorRef.tell(new UserFileMessage(username, file), getSelf());
+    }
+
+    private void printFile(String source, byte[] file_data){
+      try{
+        Path path = Paths.get("whatsapp-file");
+        Files.write(path, file_data);
+        log.info(getTime() + "[user][" + source + "]" + "File received: " + path);
+      }catch (IOException error) {
+        System.out.println("print file error = " + error);
+      }
+    }
+
+  // ------------createReceive Assisting methods------------ 
+  private ActorRef getTargetRef(String target_name){
+    Future<Object> future = Patterns.ask(managerServer, new GetUserDestMessage(target_name), timeout_time);
+    ActorRef targetRef = null;
+    try { targetRef = (ActorRef) Await.result(future, timeout_time.duration()); 
+    }catch(Exception error){ log.info("server is offline!"); return null;}
+    if(targetRef != null && targetRef == ActorRef.noSender()){
+      targetRef = null; // for doing nothing
+      System.out.println("server is offline! (Target received noSender)");
+    }
+    return targetRef;
+  }
+
+  static private String getTime(){
+    LocalDateTime now = LocalDateTime.now();
+    return ("["+now.getHour()+":"+now.getMinute()+"]");
+  }
+  
+
 }
 
 
 
 // Code graveyard R.I.P
-
- // public User(/*String userName, ActorRef serverActor*/) { // TODO: probably not needed
-    // this.userName = userName;
-    // this.serverActor = serverActor;
- // }

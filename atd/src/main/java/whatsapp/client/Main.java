@@ -2,7 +2,8 @@ package whatsapp.client;
 // package internal imports
 import whatsapp.client.User.ClientConnectMessage;
 import whatsapp.client.User.ClientDisconnectMessage;
-
+import whatsapp.client.User.ClientSendText;
+import whatsapp.client.User.ClientSendFile;
 
 // Akka imports
 import akka.actor.ActorRef;
@@ -12,6 +13,8 @@ import com.typesafe.config.ConfigFactory;
 // Java imports
 import java.io.IOException;
 import java.util.Scanner;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 
 public class Main {
@@ -47,18 +50,41 @@ public class Main {
     String command = input_array[1];
     // handeling command
     if      (command.equals("connect")){
+
       String param = input_array[2];
       userActor.tell(new ClientConnectMessage(param), ActorRef.noSender());
+
     }else if(command.equals("disconnect")){
+
       userActor.tell(new ClientDisconnectMessage(), ActorRef.noSender());
+
     // USER COMMUNICATION
     }else if(command.equals("text")){
+
+      String target_name = input_array[2];
+      String text = input_array[3];
+      userActor.tell(new ClientSendText(target_name, text), ActorRef.noSender());
+
     }else if(command.equals("file")){
+
+      String target_name = input_array[2];
+      String path = input_array[3];
+      byte[] file = readFile(path);
+      if (file != null)
+        userActor.tell(new ClientSendFile(target_name, file), ActorRef.noSender());
+
     }else{ // unknown command, error? what to do in this case..
     }
   }
-}
 
+  // Assist functions
+  public static byte[] readFile(String path){
+    byte[] data = null;
+    try{ data = Files.readAllBytes(Paths.get(path)); } 
+    catch(IOException error){ System.out.println(path + " path does not exist!"); }
+    return data;
+  }
+}
 
 
 
