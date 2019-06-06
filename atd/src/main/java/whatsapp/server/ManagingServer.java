@@ -40,7 +40,7 @@ public class ManagingServer extends AbstractActor {
                     message), getSelf());
         } else {
             this.connectedUsers.put(connectMessage.getUsername(), connectMessage.getUserActor());
-            message = String.format("%s has connected successfully.", connectMessage.getUsername());
+            message = String.format("%s connected successfully.", connectMessage.getUsername());
             getSender().tell(new ActionSuccess(message), getSelf());
         }
 
@@ -48,6 +48,19 @@ public class ManagingServer extends AbstractActor {
     }
 
     private void disconnectUser(DisconnectMessage disconnectMessage) {
-        log.info(disconnectMessage.getUsername()); //TODO
+        // TODO:: leave groups
+        String message;
+        if (this.connectedUsers.containsKey(disconnectMessage.getUsername())) {
+            this.connectedUsers.remove(disconnectMessage.getUsername());
+            message = String.format("%s disconnected successfully.", disconnectMessage.getUsername());
+            getSender().tell(new ActionSuccess(
+                    message), getSelf());
+        } else {
+            message = String.format("%s failed to disconnected.", disconnectMessage.getUsername());
+            getSender().tell(new ActionFailed(
+                    message), getSelf());
+        }
+
+        log.info(message);
     }
 }
