@@ -29,7 +29,7 @@ public class User extends AbstractActor {
   String username;
   // HashMap<String, ActorRef> groups = new HashMap<String, ActorRef>();
   final ActorSelection managerServer = 
-    getContext().actorSelection("akka://whatsapp@127.0.0.1:3553/user/server");
+    getContext().actorSelection("akka://whatsapp@127.0.0.1:3553/user/managingServer");
     
   final static Timeout timeout_time = new Timeout(Duration.create(1, TimeUnit.SECONDS));
   LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);

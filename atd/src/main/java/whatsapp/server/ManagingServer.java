@@ -5,6 +5,7 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import java.util.HashMap;
+import java.util.Optional;
 import akka.actor.ActorRef;
 import whatsapp.common.ConnectMessage;
 import whatsapp.common.DisconnectMessage;
@@ -14,7 +15,7 @@ public class ManagingServer extends AbstractActor {
     private HashMap<String, ActorRef> connectedUsers;
 
     static public Props props() {
-        return Props.create(ManagingServer.class, () -> new ManagingServer());
+        return Props.create(ManagingServer.class, ManagingServer::new);
     }
 
     @Override
