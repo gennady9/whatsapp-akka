@@ -147,12 +147,12 @@ public class User extends AbstractActor {
         .match(ClientGroupCreate.class, x -> createGroup(x.group_name))
         .match(ClientGroupLeave.class, x -> leaveGroup(x.group_name))
         .match(ClientGroupText.class, x -> sendGroupText(x.group_name, x.text))
-        .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.text))
+        // .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.text))
         // Actions received from server
         .match(ActionSuccess.class, x -> log.info(x.getMessage()))
         .match(ActionFailed.class, x -> log.info(x.getError()))
         .match(GroupTextMessage.class, x -> log.info(x.getMessage()))
-        .match(GroupFileMessage.class, x -> log.info(x.getMessage()))
+        // .match(GroupFileMessage.class, x -> log.info(x.getMessage()))
         .build();
   }
 
