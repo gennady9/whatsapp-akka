@@ -1,7 +1,6 @@
 package whatsapp.common;
 
 import java.io.Serializable;
-import akka.actor.ActorRef;
 
 public class ActionSuccess implements Serializable {
     final String message;
