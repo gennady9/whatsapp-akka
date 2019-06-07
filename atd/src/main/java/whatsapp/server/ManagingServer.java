@@ -11,6 +11,7 @@ import whatsapp.common.ConnectMessage;
 import whatsapp.common.DisconnectMessage;
 import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
+import whatsapp.common.AddCoAdminMessage;
 import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.CreateGroupMessage;
 import whatsapp.common.DeleteGroupMessage;
@@ -20,6 +21,7 @@ import whatsapp.common.GroupTextMessage;
 import whatsapp.common.InviteUserApproveMessage;
 import whatsapp.common.InviteUserMessage;
 import whatsapp.common.MuteUserMessage;
+import whatsapp.common.RemoveCoAdminMessage;
 import whatsapp.common.RemoveUserFromGroupMessage;
 import whatsapp.common.UnmuteUserMessage;
 
@@ -53,7 +55,19 @@ public class ManagingServer extends AbstractActor {
             .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
             .match(RemoveUserFromGroupMessage.class, this::removeUserFromGroup)
             .match(UnmuteUserMessage.class, this::unmuteUser)
+            .match(RemoveCoAdminMessage.class, this::removeCoadmin)
+            .match(AddCoAdminMessage.class, this::addCoadmin)
             .build();
+    }
+
+    private void removeCoadmin(RemoveCoAdminMessage message) {
+        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
+        handleGroupForward(message.getGroupName(), message);
+    }
+
+    private void addCoadmin(AddCoAdminMessage message) {
+        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
+        handleGroupForward(message.getGroupName(), message);
     }
 
     private void unmuteUser(UnmuteUserMessage message) {

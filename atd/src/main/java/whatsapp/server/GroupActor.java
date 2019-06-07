@@ -7,6 +7,7 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
+import whatsapp.common.AddCoAdminMessage;
 import whatsapp.common.AutoUnmuteUserMessage;
 import whatsapp.common.CreateGroupMessage;
 import whatsapp.common.DeleteGroupMessage;
@@ -16,6 +17,7 @@ import whatsapp.common.InviteUserMessage;
 import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.GroupFileMessage;
 import whatsapp.common.MuteUserMessage;
+import whatsapp.common.RemoveCoAdminMessage;
 import whatsapp.common.RemoveUserFromGroupMessage;
 import whatsapp.common.UnmuteUserMessage;
 import akka.routing.ActorRefRoutee;
@@ -52,27 +54,69 @@ public class GroupActor extends AbstractActor {
         return receiveBuilder().match(CreateGroupMessage.class, this::createGroup)
                 .match(GroupTextMessage.class, (GroupTextMessage msg) -> broadcastMessage(msg.getUsername(), msg))
                 .match(GroupFileMessage.class, (GroupFileMessage msg) -> broadcastMessage(msg.getUsername(), msg))
-                .match(MuteUserMessage.class, this::muteUser)
-                .match(LeaveGroupMessage.class, this::leaveGroup)
+                .match(MuteUserMessage.class, this::muteUser).match(LeaveGroupMessage.class, this::leaveGroup)
                 .match(InviteUserMessage.class, this::inviteUser)
-                .match(InviteUserApproveMessage.class, (message) -> addUserToGroup(message.getUsername(), message.getTargetActor()))
-                .match(AutoUnmuteUserMessage.class, message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(), true))
-                .match(UnmuteUserMessage.class, message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(), false))
-                .match(RemoveUserFromGroupMessage.class, this::removeUser).build();
+                .match(InviteUserApproveMessage.class,
+                        (message) -> addUserToGroup(message.getUsername(), message.getTargetActor()))
+                .match(AutoUnmuteUserMessage.class,
+                        message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(),
+                                true))
+                .match(UnmuteUserMessage.class,
+                        message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(),
+                                false))
+                .match(RemoveUserFromGroupMessage.class, this::removeUser)
+                .match(AddCoAdminMessage.class, this::addCoadmin).match(RemoveCoAdminMessage.class, this::removeCoadmin)
+                .build();
+    }
+
+    private void addCoadmin(AddCoAdminMessage message) {
+        if (!this.users.contains(message.getTarget())) {
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getTarget())), getSelf());
+            return;
+        }
+
+        if (!this.hasAdminPerms(message.getUsername())) {
+            getSender().tell(
+                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    getSelf());
+            return;
+        }
+
+        this.coAdmins.add(message.getTarget());
+
+        message.getTargetActor().tell(new GroupTextMessage(message.getUsername(), this.groupName,
+                String.format("You have been promoted to co-admin in %s!", this.groupName)), getSelf());
+    }
+
+    private void removeCoadmin(RemoveCoAdminMessage message) {
+        if (!this.users.contains(message.getTarget())) {
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getTarget())), getSelf());
+            return;
+        }
+
+        if (!this.hasAdminPerms(message.getUsername())) {
+            getSender().tell(
+                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    getSelf());
+            return;
+        }
+
+        this.coAdmins.remove(message.getTarget());
+
+        message.getTargetActor().tell(new GroupTextMessage(message.getUsername(), this.groupName,
+                String.format("You have been demoted to user in %s!", this.groupName)), getSelf());
     }
 
     private void unmuteUser(String username, String target, ActorRef targetRef, boolean isAuto) {
         if (!this.mutedUsers.contains(target)) {
-            if (!isAuto){
-                getSender().tell(new ActionFailed(String.format("%s is not muted!", target)),
-                getSelf());
+            if (!isAuto) {
+                getSender().tell(new ActionFailed(String.format("%s is not muted!", target)), getSelf());
             }
             return;
         }
-        
+
         this.mutedUsers.remove(target);
-        targetRef.tell(
-                new GroupTextMessage(username, this.groupName, "You have been unmuted! Muting time is up!"),
+        targetRef.tell(new GroupTextMessage(username, this.groupName, "You have been unmuted! Muting time is up!"),
                 getSelf());
     }
 
@@ -93,9 +137,10 @@ public class GroupActor extends AbstractActor {
 
         deleteUserFromGroup(message.getTarget(), message.getTargetActor());
 
-        message.getTargetActor().tell(new GroupTextMessage(message.getUsername(),
-                                                           this.groupName,
-                                                           String.format("You have been removed from %s by %s!", this.groupName, message.getUsername())), getSelf());
+        message.getTargetActor()
+                .tell(new GroupTextMessage(message.getUsername(), this.groupName,
+                        String.format("You have been removed from %s by %s!", this.groupName, message.getUsername())),
+                        getSelf());
     }
 
     private boolean hasAdminPerms(String username) {
@@ -193,12 +238,9 @@ public class GroupActor extends AbstractActor {
 
         // this.router = this.router.removeRoutee(message.getTargetActor());
 
-        this.getContext().getSystem().scheduler().
-        scheduleOnce(Duration.ofMillis(message.getSeconds() * 1000),
-        getSelf(),
-        new AutoUnmuteUserMessage(username, target, message.getTargetActor(), this.groupName),
-        this.getContext().getSystem().dispatcher(),
-        getSender());
+        this.getContext().getSystem().scheduler().scheduleOnce(Duration.ofMillis(message.getSeconds() * 1000),
+                getSelf(), new AutoUnmuteUserMessage(username, target, message.getTargetActor(), this.groupName),
+                this.getContext().getSystem().dispatcher(), getSender());
 
         message.getTargetActor()
                 .tell(new GroupTextMessage(username, this.groupName, String.format(
