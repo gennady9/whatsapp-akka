@@ -50,12 +50,12 @@ public class ManagingServer extends AbstractActor {
 
     private void createGroup(CreateGroupMessage createGroupMessage) {
         if (this.groups.containsKey(createGroupMessage.getName())) {
+            System.out.println("Server: group '" + createGroupMessage.getName() + "' already exists"); // TODO: maybe delete
             getSender().tell(new ActionFailed(
                     String.format("%s already exists.", createGroupMessage.getName())), getSelf());
-
             return;
         }
-
+        
         ActorRef newGroupActor = getContext().actorOf(GroupActor.props(createGroupMessage.getName(), createGroupMessage.getAdmin()), createGroupMessage.getName());
         this.groups.put(createGroupMessage.getName(), newGroupActor);
         newGroupActor.forward(createGroupMessage, getContext());

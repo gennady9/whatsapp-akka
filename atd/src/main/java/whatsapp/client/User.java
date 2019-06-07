@@ -122,6 +122,8 @@ public class User extends AbstractActor {
   @Override
   public Receive createReceive() {
     return receiveBuilder()
+        .match(ActionSuccess.class, x -> log.info(x.getMessage()))
+        .match(ActionFailed.class, x -> log.info(x.getError()))
         // User-related
         .match(ClientConnectMessage.class, x -> connectUser(x.username))
         .match(ClientDisconnectMessage.class, x -> disconnectUser())
@@ -130,7 +132,7 @@ public class User extends AbstractActor {
         .match(UserTextMessage.class, x -> { log.info(x.getMessage()); })
         .match(UserFileMessage.class, x -> printFile(x.source, x.file))
         // Group-related
-        .match(ClientGroupCreate.class, x ->createGroup(x.group_name))
+        .match(ClientGroupCreate.class, x -> createGroup(x.group_name))
         .build();
   }
 
@@ -197,7 +199,7 @@ public class User extends AbstractActor {
 
   // ------------createReceive group-related---------------- 
   private void createGroup(String group_name){
-    managerServer.tell(new CreateGroupMessage(username, group_name), getSelf());
+    managerServer.tell(new CreateGroupMessage(group_name, username), getSelf());
   }
 
   // ------------createReceive Assisting methods------------ 

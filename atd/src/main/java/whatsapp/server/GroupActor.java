@@ -97,6 +97,7 @@ public class GroupActor extends AbstractActor {
         this.users.add(this.admin);
         this.router = this.router.addRoutee(new ActorRefRoutee(getSender()));
 
+        System.out.println("Server: group= '"+ this.groupName + "' created successfully by user=" + this.admin);
         this.router.route(new ActionSuccess(String.format("Group %s created successfully.", this.groupName)),
                 getSelf());
     }
