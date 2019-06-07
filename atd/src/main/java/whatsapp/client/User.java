@@ -2,14 +2,8 @@ package whatsapp.client;
 
 // Package internal imports
 import whatsapp.common.*;
-/*
-import whatsapp.common.ConnectMessage;
-import whatsapp.common.DisconnectMessage;
-import whatsapp.common.GetUserDestMessage;
-import whatsapp.common.ActionFailed;
-import whatsapp.common.ActionSuccess;
-*/
-import whatsapp.server.ManagingServer;
+// import whatsapp.server.ManagingServer;
+import whatsapp.client.ClientMessages.*;
 // Akka imports
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -23,7 +17,6 @@ import scala.concurrent.Future;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 // Java imports
-// import java.util.HashMap;
 import java.util.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -34,9 +27,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
-// import java.util.Scanner;
-// import java.util.List;
-// import java.util.ArrayList;
 
 
 
@@ -44,168 +34,27 @@ public class User extends AbstractActor {
 
   // User actor fields
   String username;
-  // HashMap<String, ActorRef> groups = new HashMap<String, ActorRef>();
+
+  // HashMap<String, ActorRef> invites = new HashMap<String, ActorRef>();
+  ActorRef inviter_ref;
+  String group_invited_to;
+
   final ActorSelection managerServer = 
     getContext().actorSelection("akka://whatsapp@127.0.0.1:3553/user/managingServer");
     
   final static Timeout timeout_time = new Timeout(Duration.create(1, TimeUnit.SECONDS));
   LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
-  List<Pair<String,String>> invites = new ArrayList<Pair<String,String>>(); // TODO: maybe init with constructor?
+  // List<Pair<String,String>> invites = new ArrayList<Pair<String,String>>(); // TODO: maybe init with constructor?
 
 // Props
   static public Props props() {
     return Props.create(User.class, User::new); // TODO: new User or User::new? whats the difference
   }
 
-  // ------------Behaviours / "Methods"------------
-  // Client-related
-  static public class ClientConnectMessage {
-    public final String username;
-    public ClientConnectMessage(String username) {
-        this.username = username;
-    }
-  }
-  static public class ClientDisconnectMessage {
-    public ClientDisconnectMessage() {}
-  }
 
-  static public class ClientSendText{
-    String target_name;
-    String text;
-    public ClientSendText(String target_name, String text){
-      this.target_name = target_name;
-      this.text = text;
-    }
-  }
-  static public class ClientSendFile{
-    String target_name;
-    byte[] file;
-    public ClientSendFile(String target_name, byte[] file){
-      this.target_name = target_name;
-      this.file = file;
-    }
-  }
-
-
-  static public class UserTextMessage implements Serializable {
-    String source;
-    String message;
-    public UserTextMessage(String source, String message) {
-        this.source = source;
-        this.message = message;
-    }
-    public String getMessage() { // TODO: maybe eval time at message creation and not at "get"?
-        return (getTime() + "[user][" + source + "]" + message);
-    }
-  }
-
-  static public class UserFileMessage implements Serializable {
-    String source;
-    byte[] file;
-    public UserFileMessage(String source, byte[] file) {
-        this.source = source;
-        this.file = file;
-    }
-    // public String getData() { // TODO: maybe eval time at message creation and not at "get"?
-        // return (getTime() + "[user][" + source + "] File received: " + file);
-  }
-
-  // Group-related
-  static public class ClientGroupCreate {
-    public final String group_name;
-    public ClientGroupCreate(String group_name) {
-        this.group_name = group_name;
-    }
-  }
   
-  static public class ClientGroupLeave {
-    public final String group_name;
-    public ClientGroupLeave(String group_name) {
-        this.group_name = group_name;
-    }
-  }
 
-  static public class ClientGroupText{
-    String group_name;
-    String text;
-    public ClientGroupText(String group_name, String text){
-      this.group_name = group_name;
-      this.text = text;
-    }
-  }
-
-  static public class ClientGroupFile{
-    String group_name;
-    byte[] file;
-    public ClientGroupFile(String group_name, byte[] file){
-      this.group_name = group_name;
-      this.file = file;
-    }
-  }
-
-  static public class ClientGroupInvite{
-    String group_name;
-    String target_name;
-    public ClientGroupInvite(String group_name, String target_name){
-      this.group_name = group_name;
-      this.target_name = target_name;
-    }
-  }
-
-  static public class ClientGroupUserMute{
-    String group_name;
-    String target_name;
-    int mute_time;
-    public ClientGroupUserMute(String group_name, String target_name, int mute_time){
-      this.group_name = group_name;
-      this.target_name = target_name;
-      this.mute_time = mute_time;
-    }
-  }
-
-  static public class ClientGroupUserUnmute{
-    String group_name;
-    String target_name;
-    public ClientGroupUserUnmute(String group_name, String target_name){
-      this.group_name = group_name;
-      this.target_name = target_name;
-    }
-  }
-  
-  static public class ClientGroupAddCoAdmin{
-    String group_name;
-    String target_name;
-    public ClientGroupAddCoAdmin(String group_name, String target_name){
-      this.group_name = group_name;
-      this.target_name = target_name;
-    }
-  }
-
-  static public class ClientGroupRemCoAdmin{
-    String group_name;
-    String target_name;
-    public ClientGroupRemCoAdmin(String group_name, String target_name){
-      this.group_name = group_name;
-      this.target_name = target_name;
-    }
-  }
-
-  // User-invite-related
-  static public class UserInviteRequest implements Serializable {
-    String group_name;
-    public UserInviteRequest(String group_name){
-      this.group_name = group_name;
-    }
-  }
-  static public class UserInviteAccept implements Serializable {
-    String group_name;
-    String accepter_name;
-    public UserInviteAccept(String group_name, String accepter_name){
-      this.group_name = group_name;
-      this.accepter_name = accepter_name;
-    }
-  }
 
 
   //  ------------createReceive - actions handeling------------ 
@@ -218,10 +67,14 @@ public class User extends AbstractActor {
         .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
         .match(ClientSendFile.class, x -> sendUserFile(x.target_name, x.file))
         .match(UserTextMessage.class, x -> { log.info(x.getMessage()); })
+        .match(UserLogMessage.class,  x -> { log.info(x.getMessage()); })
         .match(UserFileMessage.class, x -> printFile(x.source, x.file))
         .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
-        .match(UserInviteRequest.class, x -> gotInvited(x.group_name))
-        .match(UserInviteAccept.class, x -> inviteAccepted(x.group_name, x.accepter_name))
+        // .match(UserInviteRequest.class, x -> )
+        .match(UpdateTargetAboutInvite.class, x -> gotInvited(x.group_name))
+        .match(ClientInviteAccepted.class, x -> inviteAccepted())
+        .match(ClientInviteDeclined.class, x -> inviteDeclined())
+        .match(UserInviteAccept.class, x -> handleInviteAccepted(x.group_name, x.accepter_name))
         // Group-related
         .match(ClientGroupCreate.class, x -> createGroup(x.group_name))
         .match(ClientGroupLeave.class, x -> leaveGroup(x.group_name))
@@ -308,33 +161,46 @@ public class User extends AbstractActor {
     private void sendInviteToTarget(String group_name, String target_name){
       ActorRef targetActorRef = getTargetRef(target_name);
       if(targetActorRef == null) { return; }
-      targetActorRef.tell(new UserInviteRequest(group_name), getSelf());
+      
+      targetActorRef.tell(new UpdateTargetAboutInvite(group_name, username), getSelf());
+      
+      // targetActorRef.tell(new UserInviteRequest(group_name), getSelf());
       // invites.add(new Pair(group_name, target_name));
       // if user 2 confirm, send approved message UserTextMessage
       
       // TODO: add decline message
     }
 
-    private void gotInvited(String group_name){
+    // private void update
 
-            // I got invited, wait for input, if yes - send inviteUserApprovalMessage
-            System.out.println("You have been invited to <groupname>, Accept?");
-            Scanner scanner = new Scanner(System.in); 
-            String input = scanner.nextLine();
-            System.out.println("input at got invited= " + input);
-            if(input.toLowerCase().contains("yes")){
-              getSender().tell(new UserInviteAccept(group_name, username), getSelf());
-            }
-            
-            // TODO: consider adding Invite declined [ and update invite list accordingly]
+
+    // Handle this user getting invited to specific group
+    private void gotInvited(String group_name){ // User B
+      System.out.println("You have been invited to " + group_name + ", Accept?");
+      inviter_ref = getSender();
+      group_invited_to = group_name;      
+      // TODO: consider adding Invite declined [ and update invite list accordingly]
+    }
+    private void inviteAccepted(){ // User B
+      if(inviter_ref == null || group_invited_to == null) 
+        return;
+      inviter_ref.tell(new UserInviteAccept(group_invited_to, username), getSelf());
+      // inviter_ref = null;
+      // group_invited_to = null;
+    }
+    private void inviteDeclined(){ // User B
+      inviter_ref = null;
+      group_invited_to = null;
+      return;
+      // if(inviter_ref == null || group_invited_to == null) 
+        // return;
+      // inviter_ref.tell(new UserInviteDecline(group_invited_to, username), getSelf());
     }
 
-    private void inviteAccepted(String group_name, String accepter_name){
-      // if(!invites.contains(new Pair(group_name, accepter_name))){
-        // System.out.println("[Debug] User->inviteAccepted->Can't find invited");
-        // TODO: remove from list if found, add return if not
-      // }
+    private void handleInviteAccepted(String group_name, String accepter_name){
       managerServer.tell(new InviteUserApproveMessage(group_name, accepter_name), getSelf());
+      // TODO: consider doing ask and send only if success
+      getSender().tell(new UserLogMessage("Welcome to " + group_name + "!"), getSelf());
     }
 
   // ------------createReceive group-related---------------- 
@@ -355,27 +221,22 @@ public class User extends AbstractActor {
   }
 
   private void inviteToGroup(String group_name, String target_name){
-    System.out.println("[debug] client told manager about inviting another user");
     managerServer.tell(new InviteUserMessage(group_name, target_name, username), getSelf());
   }
 
   private void muteUser(String group_name, String target_name, int mute_time){
-    System.out.println("[debug] client told manager about muting another user");
     managerServer.tell(new MuteUserMessage(group_name, username, target_name, mute_time), getSelf());
   }
 
   private void unmuteUser(String group_name, String target_name){
-    System.out.println("[debug] client told manager about unmuting another user");
     // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
   }
 
   private void addCoAdmin(String group_name, String target_name){
-    System.out.println("[debug] admin told manager about coadmin another user");
     // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
   }
 
   private void remCoAdmin(String group_name, String target_name){
-    System.out.println("[debug] client told manager about removing coadmin");
     // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
   }
   // ------------createReceive Assisting methods------------ 
@@ -391,11 +252,20 @@ public class User extends AbstractActor {
     return targetRef;
   }
 
-  static private String getTime(){
+  static public String getTime(){
     LocalDateTime now = LocalDateTime.now();
     return ("["+now.getHour()+":"+now.getMinute()+"]");
   }
 
+
+}
+
+
+
+// Code graveyard R.I.P
+
+
+/*
   public class Pair<L,R> {
     private L l;
     private R r;
@@ -408,9 +278,4 @@ public class User extends AbstractActor {
     public void setL(L l){ this.l = l; }
     public void setR(R r){ this.r = r; }
 }
-  
-}
-
-
-
-// Code graveyard R.I.P
+  */
