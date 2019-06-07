@@ -58,7 +58,7 @@ public class GroupActor extends AbstractActor {
                     getSelf());
             return;
         }
-        // deleteUser(msg.userName, getSender());
+        removeUserFromGroup(username, getSender());
         router.route(new ActionFailed(String.format("%s has left %s!", username, this.groupName)),
                 getSelf());
 
