@@ -7,6 +7,7 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
+import whatsapp.common.AutoUnmuteUserMessage;
 import whatsapp.common.CreateGroupMessage;
 import whatsapp.common.DeleteGroupMessage;
 import whatsapp.common.GroupTextMessage;
@@ -16,6 +17,7 @@ import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.GroupFileMessage;
 import whatsapp.common.MuteUserMessage;
 import whatsapp.common.RemoveUserFromGroupMessage;
+import whatsapp.common.UnmuteUserMessage;
 import akka.routing.ActorRefRoutee;
 import akka.routing.BroadcastRoutingLogic;
 import akka.routing.Router;
@@ -54,7 +56,24 @@ public class GroupActor extends AbstractActor {
                 .match(LeaveGroupMessage.class, this::leaveGroup)
                 .match(InviteUserMessage.class, this::inviteUser)
                 .match(InviteUserApproveMessage.class, (message) -> addUserToGroup(message.getUsername(), message.getTargetActor()))
+                .match(AutoUnmuteUserMessage.class, message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(), true))
+                .match(UnmuteUserMessage.class, message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(), false))
                 .match(RemoveUserFromGroupMessage.class, this::removeUser).build();
+    }
+
+    private void unmuteUser(String username, String target, ActorRef targetRef, boolean isAuto) {
+        if (!this.mutedUsers.contains(target)) {
+            if (!isAuto){
+                getSender().tell(new ActionFailed(String.format("%s is not muted!", target)),
+                getSelf());
+            }
+            return;
+        }
+        
+        this.mutedUsers.remove(target);
+        targetRef.tell(
+                new GroupTextMessage(username, this.groupName, "You have been unmuted! Muting time is up!"),
+                getSelf());
     }
 
     private void removeUser(RemoveUserFromGroupMessage message) {
@@ -143,11 +162,6 @@ public class GroupActor extends AbstractActor {
         this.router = this.router.addRoutee(new ActorRefRoutee(actor));
     }
 
-    // private void deleteUserFromGroup(String username) {
-    //     this.users.remove(username);
-    //     this.router = this.router.addRoutee(new ActorRefRoutee(getSender()));
-    // }
-
     private void createGroup(CreateGroupMessage createGroupMessage) {
         if (!createGroupMessage.getAdmin().equals(this.admin) || !createGroupMessage.getName().equals(this.groupName)) {
             return;
@@ -179,16 +193,12 @@ public class GroupActor extends AbstractActor {
 
         // this.router = this.router.removeRoutee(message.getTargetActor());
 
-        this.getContext().getSystem().scheduler().scheduleOnce(Duration.ofMillis(message.getSeconds() * 1000), () -> {
-            if (this.mutedUsers.contains(target)) {
-                this.mutedUsers.remove(target);
-                message.getTargetActor().tell(
-                        new GroupTextMessage(username, this.groupName, "You have been unmuted! Muting time is up!"),
-                        getSelf());
-            }
-            // this.router = this.router.addRoutee(new
-            // ActorRefRoutee(message.getTargetActor()));
-        }, this.getContext().getSystem().dispatcher());
+        this.getContext().getSystem().scheduler().
+        scheduleOnce(Duration.ofMillis(message.getSeconds() * 1000),
+        getSelf(),
+        new AutoUnmuteUserMessage(username, target, message.getTargetActor(), this.groupName),
+        this.getContext().getSystem().dispatcher(),
+        getSender());
 
         message.getTargetActor()
                 .tell(new GroupTextMessage(username, this.groupName, String.format(
