@@ -20,6 +20,7 @@ import whatsapp.common.GroupTextMessage;
 import whatsapp.common.InviteUserApproveMessage;
 import whatsapp.common.InviteUserMessage;
 import whatsapp.common.MuteUserMessage;
+import whatsapp.common.RemoveUserFromGroupMessage;
 
 public class ManagingServer extends AbstractActor {
     private LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -47,9 +48,20 @@ public class ManagingServer extends AbstractActor {
             .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(InviteUserMessage.class, this::inviteUser)
-            .match(InviteUserApproveMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
+            .match(InviteUserApproveMessage.class, this::inviteUserApprove)
             .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
+            .match(RemoveUserFromGroupMessage.class, this::removeUserFromGroup)
             .build();
+    }
+
+    private void inviteUserApprove(InviteUserApproveMessage message) {
+        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
+        handleGroupForward(message.getGroupName(), message);
+    }
+
+    private void removeUserFromGroup(RemoveUserFromGroupMessage message) {
+        message.setTargetActor(this.connectedUsers.get(message.getTarget()));
+        handleGroupForward(message.getGroupName(), message);
     }
 
     private void inviteUser(InviteUserMessage message) {
