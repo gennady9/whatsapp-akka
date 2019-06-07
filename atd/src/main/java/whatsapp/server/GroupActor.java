@@ -53,7 +53,7 @@ public class GroupActor extends AbstractActor {
                 .match(MuteUserMessage.class, this::muteUser)
                 .match(LeaveGroupMessage.class, this::leaveGroup)
                 .match(InviteUserMessage.class, this::inviteUser)
-                .match(InviteUserApproveMessage.class, (message) -> addUserToGroup(message.getUsername()))
+                .match(InviteUserApproveMessage.class, (message) -> addUserToGroup(message.getUsername(), message.getTargetActor()))
                 .match(RemoveUserFromGroupMessage.class, this::removeUser).build();
     }
 
@@ -138,9 +138,9 @@ public class GroupActor extends AbstractActor {
         router.route(msg, getSelf());
     }
 
-    private void addUserToGroup(String username) {
+    private void addUserToGroup(String username, ActorRef actor) {
         this.users.add(username);
-        this.router = this.router.addRoutee(new ActorRefRoutee(getSender()));
+        this.router = this.router.addRoutee(new ActorRefRoutee(actor));
     }
 
     // private void deleteUserFromGroup(String username) {
@@ -153,7 +153,7 @@ public class GroupActor extends AbstractActor {
             return;
         }
 
-        addUserToGroup(this.admin);
+        addUserToGroup(this.admin, getSender());
 
         System.out.println("Server: group= '" + this.groupName + "' created successfully by user=" + this.admin);
         this.router.route(new ActionSuccess(String.format("Group %s created successfully.", this.groupName)),

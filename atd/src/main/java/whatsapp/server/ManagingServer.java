@@ -48,10 +48,15 @@ public class ManagingServer extends AbstractActor {
             .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(InviteUserMessage.class, this::inviteUser)
-            .match(InviteUserApproveMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
+            .match(InviteUserApproveMessage.class, this::inviteUserApprove)
             .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
             .match(RemoveUserFromGroupMessage.class, this::removeUserFromGroup)
             .build();
+    }
+
+    private void inviteUserApprove(InviteUserApproveMessage message) {
+        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
+        handleGroupForward(message.getGroupName(), message);
     }
 
     private void removeUserFromGroup(RemoveUserFromGroupMessage message) {
