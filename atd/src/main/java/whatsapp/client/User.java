@@ -130,6 +130,15 @@ public class User extends AbstractActor {
     }
   }
 
+  static public class ClientGroupFile{
+    String group_name;
+    byte[] file;
+    public ClientGroupFile(String group_name, byte[] file){
+      this.group_name = group_name;
+      this.file = file;
+    }
+  }
+
 
 
   //  ------------createReceive - actions handeling------------ 
@@ -147,11 +156,12 @@ public class User extends AbstractActor {
         .match(ClientGroupCreate.class, x -> createGroup(x.group_name))
         .match(ClientGroupLeave.class, x -> leaveGroup(x.group_name))
         .match(ClientGroupText.class, x -> sendGroupText(x.group_name, x.text))
-        // .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.text))
+        .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.file))
         // Actions received from server
         .match(ActionSuccess.class, x -> log.info(x.getMessage()))
         .match(ActionFailed.class, x -> log.info(x.getError()))
         .match(GroupTextMessage.class, x -> log.info(x.getMessage()))
+        .match(GroupFileMessage.class, x -> printFile(x.username, x.file))
         // .match(GroupFileMessage.class, x -> log.info(x.getMessage()))
         .build();
   }
@@ -230,6 +240,11 @@ public class User extends AbstractActor {
     System.out.println("[debug] told manager about group text");
     managerServer.tell(new GroupTextMessage(username, group_name, text), getSelf());
   }
+
+  private void sendGroupFile(String group_name, byte[] file){
+    System.out.println("[debug] told manager about group file");
+    managerServer.tell(new GroupFileMessage(username, group_name, file), getSelf());
+  }
   // ------------createReceive Assisting methods------------ 
   private ActorRef getTargetRef(String target_name){
     Future<Object> future = Patterns.ask(managerServer, new GetUserDestMessage(target_name), timeout_time);
@@ -248,7 +263,6 @@ public class User extends AbstractActor {
     return ("["+now.getHour()+":"+now.getMinute()+"]");
   }
   
-
 }
 
 

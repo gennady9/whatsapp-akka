@@ -105,18 +105,22 @@ public class Main {
 
     // GROUP COMMUNICATION
     }else if(command.equals("send")){
+
+
       String send_type = input_array[2];
       String group_name = input_array[3];
       if(send_type.equals("text")){
         String text = input_array[4];
         userActor.tell(new ClientGroupText(group_name, text), ActorRef.noSender());
       }else if(send_type.equals("file")){
-        // System.out.println("[debug] received file send at user");
-        // String file_path = input_array[4];
-      
-        // userActor.tell(new ClientGroupFile(group_name, file), ActorRef.noSender());
+        String path = input_array[4];
+        byte[] file = readFile(path);
+        if (file != null)
+          userActor.tell(new ClientGroupFile(group_name, file), ActorRef.noSender());
       }
-    }else{ // unknown command, error? what to do in this case..
+
+
+    }else{ // TODO: unknown command, error? what to do in this case..
     }
   }
 
