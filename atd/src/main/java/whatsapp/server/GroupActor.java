@@ -37,6 +37,7 @@ public class GroupActor extends AbstractActor {
         this.users = new ArrayList<String>();
         this.coAdmins = new ArrayList<String>();
         this.mutedUsers = new ArrayList<String>();
+        this.router = new Router(new BroadcastRoutingLogic());
     }
 
     static public Props props(String name, String admin) {
