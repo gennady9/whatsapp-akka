@@ -1,13 +1,16 @@
 package whatsapp.server;
 
 import akka.actor.AbstractActor;
+import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
 import whatsapp.common.CreateGroupMessage;
+import whatsapp.common.DeleteGroupMessage;
 import whatsapp.common.GroupTextMessage;
+import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.GroupFileMessage;
 import whatsapp.common.MuteUserMessage;
 import akka.routing.ActorRefRoutee;
@@ -44,7 +47,34 @@ public class GroupActor extends AbstractActor {
         return receiveBuilder().match(CreateGroupMessage.class, this::createGroup)
                 .match(GroupTextMessage.class, (GroupTextMessage msg) -> broadcastMessage(msg.getUsername(), msg))
                 .match(GroupFileMessage.class, (GroupFileMessage msg) -> broadcastMessage(msg.getUsername(), msg))
-                .match(MuteUserMessage.class, this::muteUser).build();
+                .match(MuteUserMessage.class, this::muteUser).match(LeaveGroupMessage.class, this::leaveGroup).build();
+    }
+
+    private void leaveGroup(LeaveGroupMessage message) {
+        String username = message.getUsername();
+        if (!users.contains(username)) {
+            getSender().tell(
+                    new ActionFailed(String.format("%s is not in %s", username, this.groupName)),
+                    getSelf());
+            return;
+        }
+        // deleteUser(msg.userName, getSender());
+        router.route(new ActionFailed(String.format("%s has left %s!", username, this.groupName)),
+                getSelf());
+
+    }
+
+    private void removeUserFromGroup(String username, ActorRef actorRef) {
+        if (this.admin.equals(username)) {
+            router.route(new GroupTextMessage(username, this.groupName, String.format("%s admin has closed %s!", this.groupName, this.groupName)), getSelf());
+            getContext().parent().tell(new DeleteGroupMessage(groupName), getSelf());
+            return;
+        }
+
+        router = router.removeRoutee(actorRef);
+        this.users.remove(username);
+        this.coAdmins.remove(username);
+        this.mutedUsers.remove(username);
     }
 
     private void broadcastMessage(String username, Object msg) {
@@ -60,7 +90,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void createGroup(CreateGroupMessage createGroupMessage) {
-        if (createGroupMessage.getAdmin() != this.admin || createGroupMessage.getName() != this.groupName) {
+        if (!createGroupMessage.getAdmin().equals(this.admin) || !createGroupMessage.getName().equals(this.groupName)) {
             return;
         }
 
@@ -74,7 +104,7 @@ public class GroupActor extends AbstractActor {
     private void muteUser(MuteUserMessage message) {
         String username = message.getUsername(); // TODO::check this mess..
         // admin check...
-        if (this.admin != username && !this.coAdmins.contains(username)) {
+        if (!this.admin.equals(username) && !this.coAdmins.contains(username)) {
             getSender().tell(new ActionFailed(
                     String.format("You are neither an admin nor a co-admin of %s! does not exist!", this.groupName)),
                     getSelf());

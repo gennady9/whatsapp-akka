@@ -13,6 +13,7 @@ import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
 import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.CreateGroupMessage;
+import whatsapp.common.DeleteGroupMessage;
 import whatsapp.common.GetUserDestMessage;
 import whatsapp.common.GroupFileMessage;
 import whatsapp.common.GroupTextMessage;
@@ -37,11 +38,12 @@ public class ManagingServer extends AbstractActor {
             .match(ConnectMessage.class, this::connectUser)
             .match(DisconnectMessage.class, this::disconnectUser)
             .match(CreateGroupMessage.class, this::createGroup)
-            .match(LeaveGroupMessage.class, this::leaveGroup)
+            .match(LeaveGroupMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
             .match(GetUserDestMessage.class, this::getUserDest)
             .match(MuteUserMessage.class, this::handleMuteUser)
             .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
             .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
+            .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
             .build();
     }
 
@@ -70,9 +72,9 @@ public class ManagingServer extends AbstractActor {
         getSender().tell(target, getSelf());
     }
 
-    private void leaveGroup(LeaveGroupMessage leaveGroupMessage) {
-        String user = leaveGroupMessage.getUsername(); // TODO::
-        // if()
+    private void deleteGroup(DeleteGroupMessage message){
+        ActorRef group = this.groups.remove(message.getGroupName());
+        this.getContext().stop(group);
     }
 
     private void handleGroupForward(String groupName, Object message){
