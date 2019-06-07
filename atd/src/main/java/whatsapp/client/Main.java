@@ -1,15 +1,10 @@
 package whatsapp.client;
 // package internal imports
-import whatsapp.client.User.*;
-// import whatsapp.client.User.ClientConnectMessage;
-// import whatsapp.client.User.ClientDisconnectMessage;
-// import whatsapp.client.User.ClientSendText;
-// import whatsapp.client.User.ClientSendFile;
+import whatsapp.client.ClientMessages.*;
 
 // Akka imports
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-
 import com.typesafe.config.ConfigFactory;
 // Java imports
 import java.io.IOException;
@@ -21,18 +16,11 @@ import java.nio.file.Paths;
 public class Main {
   public static void main(String[] args) {
     final ActorSystem system = ActorSystem.create("client", ConfigFactory.load("client"));
+    final ActorRef userActor = system.actorOf(User.props(), "userActor");
+    //  ------------Main - input ------------ 
 
-      //  ------------Main - input ------------ 
       Scanner scanner = new Scanner(System.in);
       try {
-      
-      //#create-user-actor
-      final ActorRef userActor = 
-        system.actorOf(User.props(), "userActor");
-
-        // Scanner in or System.in.read?
-        
-
         String input;
         while(true){
             input = scanner.nextLine();
@@ -40,13 +28,16 @@ public class Main {
               handle_user_cmd(userActor, input);
             }else if(input.startsWith("/group")){
               handle_group_cmd(userActor, input);
+            }else if(input.toLowerCase().contains("yes")){
+              accept_invite(userActor);
+            }else if(input.startsWith("no")){ // if no, do nothing
+              decline_invite(userActor);
             }else if(input.startsWith("exit")){
               break;
             }else{
               System.out.println("Unknown command: '" + input + "' ,Try again or type 'exit'");
             }
         }
-
     // } catch (IOException ioe) {
     } finally {
       scanner.close();
@@ -85,10 +76,17 @@ public class Main {
       if (file != null)
         userActor.tell(new ClientSendFile(target_name, file), ActorRef.noSender());
 
-    }else{ // unknown command, error? what to do in this case..
+    }else{ // TODO: unknown command, error? what to do in this case..
     }
   }
 
+  // invite special command
+  private static void accept_invite(ActorRef userActor){
+    userActor.tell(new ClientInviteAccepted(), ActorRef.noSender());
+  }
+  private static void decline_invite(ActorRef userActor){
+    userActor.tell(new ClientInviteDeclined(), ActorRef.noSender());
+  }
   //  ------------ Handeling group-related commands ------------ 
   private static void handle_group_cmd(ActorRef userActor, String input){
     String[] input_array = input.split("\\s+");  // remove spaces and seperate
@@ -155,7 +153,7 @@ public class Main {
   }
 
   // Assist functions
-  public static byte[] readFile(String path){
+  private static byte[] readFile(String path){
     byte[] data = null;
     try{ data = Files.readAllBytes(Paths.get(path)); } 
     catch(IOException error){ System.out.println(path + " path does not exist!"); }
