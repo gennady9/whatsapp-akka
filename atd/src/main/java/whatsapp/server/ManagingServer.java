@@ -26,6 +26,7 @@ public class ManagingServer extends AbstractActor {
 
     public ManagingServer() {
         this.connectedUsers = new HashMap<String, ActorRef>();
+        this.groups = new HashMap<String, ActorRef>();
     }
 
     static public Props props() {
