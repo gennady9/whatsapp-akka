@@ -23,13 +23,15 @@ public class Main {
     final ActorSystem system = ActorSystem.create("client", ConfigFactory.load("client"));
 
       //  ------------Main - input ------------ 
-    try {
+      Scanner scanner = new Scanner(System.in);
+      try {
+      
       //#create-user-actor
       final ActorRef userActor = 
         system.actorOf(User.props(), "userActor");
 
         // Scanner in or System.in.read?
-        Scanner scanner = new Scanner(System.in);
+        
 
         String input;
         while(true){
@@ -41,12 +43,13 @@ public class Main {
             }else if(input.startsWith("exit")){
               break;
             }else{
-              System.out.println("Unknown command: " + input/* + " ,Try again or type 'exit'"*/);
+              System.out.println("Unknown command: '" + input + "' ,Try again or type 'exit'");
             }
         }
 
     // } catch (IOException ioe) {
     } finally {
+      scanner.close();
       system.terminate();
     }
   }
@@ -106,7 +109,6 @@ public class Main {
     // GROUP COMMUNICATION
     }else if(command.equals("send")){
 
-
       String send_type = input_array[2];
       String group_name = input_array[3];
       if(send_type.equals("text")){
@@ -120,6 +122,34 @@ public class Main {
       }
 
 
+    }else if(command.equals("user")){
+      String action = input_array[2];
+      String group_name = input_array[3];
+      String target_name = input_array[4];
+      if      (action.equals("invite")){
+        userActor.tell(new ClientGroupInvite(group_name, target_name), ActorRef.noSender());
+      }else if(action.equals("remove")){
+
+      }else if(action.equals("mute")){
+        int mute_time = Integer.parseInt(input_array[5]);
+        userActor.tell(new ClientGroupUserMute(group_name, target_name, mute_time), ActorRef.noSender());
+      }else if(action.equals("unmute")){
+        // userActor.tell(new ClientGroupUserUnmute(group_name, target_name), ActorRef.noSender());
+      }
+
+    }else if(command.equals("coadmin")){
+
+      String action = input_array[2];
+      String group_name = input_array[3];
+      String target_name = input_array[4];
+      if      (action.equals("add")){
+        userActor.tell(new ClientGroupAddCoAdmin(group_name, target_name), ActorRef.noSender());
+      }else if(action.equals("remove")){
+        userActor.tell(new ClientGroupRemCoAdmin(group_name, target_name), ActorRef.noSender());
+      }
+  
+    
+    
     }else{ // TODO: unknown command, error? what to do in this case..
     }
   }

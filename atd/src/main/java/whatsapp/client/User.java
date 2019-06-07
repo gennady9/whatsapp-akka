@@ -23,17 +23,20 @@ import scala.concurrent.Future;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 // Java imports
-import java.util.HashMap;
+// import java.util.HashMap;
+import java.util.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
-// import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
-import java.io.IOException;
+// import java.util.Scanner;
+// import java.util.List;
+// import java.util.ArrayList;
 
 
 
@@ -47,6 +50,8 @@ public class User extends AbstractActor {
     
   final static Timeout timeout_time = new Timeout(Duration.create(1, TimeUnit.SECONDS));
   LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
+
+  List<Pair<String,String>> invites = new ArrayList<Pair<String,String>>(); // TODO: maybe init with constructor?
 
 // Props
   static public Props props() {
@@ -139,6 +144,68 @@ public class User extends AbstractActor {
     }
   }
 
+  static public class ClientGroupInvite{
+    String group_name;
+    String target_name;
+    public ClientGroupInvite(String group_name, String target_name){
+      this.group_name = group_name;
+      this.target_name = target_name;
+    }
+  }
+
+  static public class ClientGroupUserMute{
+    String group_name;
+    String target_name;
+    int mute_time;
+    public ClientGroupUserMute(String group_name, String target_name, int mute_time){
+      this.group_name = group_name;
+      this.target_name = target_name;
+      this.mute_time = mute_time;
+    }
+  }
+
+  static public class ClientGroupUserUnmute{
+    String group_name;
+    String target_name;
+    public ClientGroupUserUnmute(String group_name, String target_name){
+      this.group_name = group_name;
+      this.target_name = target_name;
+    }
+  }
+  
+  static public class ClientGroupAddCoAdmin{
+    String group_name;
+    String target_name;
+    public ClientGroupAddCoAdmin(String group_name, String target_name){
+      this.group_name = group_name;
+      this.target_name = target_name;
+    }
+  }
+
+  static public class ClientGroupRemCoAdmin{
+    String group_name;
+    String target_name;
+    public ClientGroupRemCoAdmin(String group_name, String target_name){
+      this.group_name = group_name;
+      this.target_name = target_name;
+    }
+  }
+
+  // User-invite-related
+  static public class UserInviteRequest implements Serializable {
+    String group_name;
+    public UserInviteRequest(String group_name){
+      this.group_name = group_name;
+    }
+  }
+  static public class UserInviteAccept implements Serializable {
+    String group_name;
+    String accepter_name;
+    public UserInviteAccept(String group_name, String accepter_name){
+      this.group_name = group_name;
+      this.accepter_name = accepter_name;
+    }
+  }
 
 
   //  ------------createReceive - actions handeling------------ 
@@ -152,17 +219,28 @@ public class User extends AbstractActor {
         .match(ClientSendFile.class, x -> sendUserFile(x.target_name, x.file))
         .match(UserTextMessage.class, x -> { log.info(x.getMessage()); })
         .match(UserFileMessage.class, x -> printFile(x.source, x.file))
+        .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
+        .match(UserInviteRequest.class, x -> gotInvited(x.group_name))
+        .match(UserInviteAccept.class, x -> inviteAccepted(x.group_name, x.accepter_name))
         // Group-related
         .match(ClientGroupCreate.class, x -> createGroup(x.group_name))
         .match(ClientGroupLeave.class, x -> leaveGroup(x.group_name))
         .match(ClientGroupText.class, x -> sendGroupText(x.group_name, x.text))
         .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.file))
-        // Actions received from server
+        .match(ClientGroupInvite.class, x -> inviteToGroup(x.group_name, x.target_name))
+        .match(ClientGroupUserMute.class, x -> muteUser(x.group_name, x.target_name, x.mute_time))
+        .match(ClientGroupUserUnmute.class, x -> unmuteUser(x.group_name, x.target_name))
+        .match(ClientGroupAddCoAdmin.class, x -> addCoAdmin(x.group_name, x.target_name))
+        .match(ClientGroupRemCoAdmin.class, x -> remCoAdmin(x.group_name, x.target_name))
+        
+        // Actions received
+        //  from server
         .match(ActionSuccess.class, x -> log.info(x.getMessage()))
         .match(ActionFailed.class, x -> log.info(x.getError()))
         .match(GroupTextMessage.class, x -> log.info(x.getMessage()))
         .match(GroupFileMessage.class, x -> printFile(x.username, x.file))
-        // .match(GroupFileMessage.class, x -> log.info(x.getMessage()))
+        .match(InviteUserMessage.class, x -> sendInviteToTarget(x.getGroupName(), x.getTargetUser()))
+        
         .build();
   }
 
@@ -227,6 +305,38 @@ public class User extends AbstractActor {
       }
     }
 
+    private void sendInviteToTarget(String group_name, String target_name){
+      ActorRef targetActorRef = getTargetRef(target_name);
+      if(targetActorRef == null) { return; }
+      targetActorRef.tell(new UserInviteRequest(group_name), getSelf());
+      // invites.add(new Pair(group_name, target_name));
+      // if user 2 confirm, send approved message UserTextMessage
+      
+      // TODO: add decline message
+    }
+
+    private void gotInvited(String group_name){
+
+            // I got invited, wait for input, if yes - send inviteUserApprovalMessage
+            System.out.println("You have been invited to <groupname>, Accept?");
+            Scanner scanner = new Scanner(System.in); 
+            String input = scanner.nextLine();
+            System.out.println("input at got invited= " + input);
+            if(input.toLowerCase().contains("yes")){
+              getSender().tell(new UserInviteAccept(group_name, username), getSelf());
+            }
+            
+            // TODO: consider adding Invite declined [ and update invite list accordingly]
+    }
+
+    private void inviteAccepted(String group_name, String accepter_name){
+      // if(!invites.contains(new Pair(group_name, accepter_name))){
+        // System.out.println("[Debug] User->inviteAccepted->Can't find invited");
+        // TODO: remove from list if found, add return if not
+      // }
+      managerServer.tell(new InviteUserApproveMessage(group_name, accepter_name), getSelf());
+    }
+
   // ------------createReceive group-related---------------- 
   private void createGroup(String group_name){
     managerServer.tell(new CreateGroupMessage(group_name, username), getSelf());
@@ -237,13 +347,36 @@ public class User extends AbstractActor {
   }
 
   private void sendGroupText(String group_name, String text){
-    System.out.println("[debug] told manager about group text");
     managerServer.tell(new GroupTextMessage(username, group_name, text), getSelf());
   }
 
   private void sendGroupFile(String group_name, byte[] file){
-    System.out.println("[debug] told manager about group file");
     managerServer.tell(new GroupFileMessage(username, group_name, file), getSelf());
+  }
+
+  private void inviteToGroup(String group_name, String target_name){
+    System.out.println("[debug] client told manager about inviting another user");
+    managerServer.tell(new InviteUserMessage(group_name, target_name, username), getSelf());
+  }
+
+  private void muteUser(String group_name, String target_name, int mute_time){
+    System.out.println("[debug] client told manager about muting another user");
+    managerServer.tell(new MuteUserMessage(group_name, username, target_name, mute_time), getSelf());
+  }
+
+  private void unmuteUser(String group_name, String target_name){
+    System.out.println("[debug] client told manager about unmuting another user");
+    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
+  }
+
+  private void addCoAdmin(String group_name, String target_name){
+    System.out.println("[debug] admin told manager about coadmin another user");
+    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
+  }
+
+  private void remCoAdmin(String group_name, String target_name){
+    System.out.println("[debug] client told manager about removing coadmin");
+    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
   }
   // ------------createReceive Assisting methods------------ 
   private ActorRef getTargetRef(String target_name){
@@ -262,6 +395,19 @@ public class User extends AbstractActor {
     LocalDateTime now = LocalDateTime.now();
     return ("["+now.getHour()+":"+now.getMinute()+"]");
   }
+
+  public class Pair<L,R> {
+    private L l;
+    private R r;
+    public Pair(L l, R r){
+        this.l = l;
+        this.r = r;
+    }
+    public L getL(){ return l; }
+    public R getR(){ return r; }
+    public void setL(L l){ this.l = l; }
+    public void setR(R r){ this.r = r; }
+}
   
 }
 
