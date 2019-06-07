@@ -39,7 +39,7 @@ public class Main {
             }else if(input.startsWith("/group")){
               handle_group_cmd(userActor, input);
             }else if(input.startsWith("exit")){
-              system.terminate();
+              break;
             }else{
               System.out.println("Unknown command: " + input/* + " ,Try again or type 'exit'"*/);
             }
@@ -100,23 +100,22 @@ public class Main {
 
     }else if(command.equals("leave")){
 
-      userActor.tell(new ClientDisconnectMessage(), ActorRef.noSender());
+      String group_name = input_array[2];
+      userActor.tell(new ClientGroupLeave(group_name), ActorRef.noSender());
 
-    // USER COMMUNICATION
-    }else if(command.equals("text")){
-
-      String target_name = input_array[2];
-      String text = input_array[3];
-      userActor.tell(new ClientSendText(target_name, text), ActorRef.noSender());
-
-    }else if(command.equals("file")){
-
-      String target_name = input_array[2];
-      String path = input_array[3];
-      byte[] file = readFile(path);
-      if (file != null)
-        userActor.tell(new ClientSendFile(target_name, file), ActorRef.noSender());
-
+    // GROUP COMMUNICATION
+    }else if(command.equals("send")){
+      String send_type = input_array[2];
+      String group_name = input_array[3];
+      if(send_type.equals("text")){
+        String text = input_array[4];
+        userActor.tell(new ClientGroupText(group_name, text), ActorRef.noSender());
+      }else if(send_type.equals("file")){
+        // System.out.println("[debug] received file send at user");
+        // String file_path = input_array[4];
+      
+        // userActor.tell(new ClientGroupFile(group_name, file), ActorRef.noSender());
+      }
     }else{ // unknown command, error? what to do in this case..
     }
   }

@@ -39,11 +39,11 @@ public class ManagingServer extends AbstractActor {
             .match(ConnectMessage.class, this::connectUser)
             .match(DisconnectMessage.class, this::disconnectUser)
             .match(CreateGroupMessage.class, this::createGroup)
-            .match(LeaveGroupMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
+            .match(LeaveGroupMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(GetUserDestMessage.class, this::getUserDest)
             .match(MuteUserMessage.class, this::handleMuteUser)
-            .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
-            .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getUsername(), message))
+            .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
+            .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
             .build();
     }

@@ -54,7 +54,7 @@ public class User extends AbstractActor {
   }
 
   // ------------Behaviours / "Methods"------------
-  // Client related
+  // Client-related
   static public class ClientConnectMessage {
     public final String username;
     public ClientConnectMessage(String username) {
@@ -64,14 +64,6 @@ public class User extends AbstractActor {
   static public class ClientDisconnectMessage {
     public ClientDisconnectMessage() {}
   }
-
-  static public class ClientGroupCreate {
-    public final String group_name;
-    public ClientGroupCreate(String group_name) {
-        this.group_name = group_name;
-    }
-  }
-  
 
   static public class ClientSendText{
     String target_name;
@@ -114,7 +106,29 @@ public class User extends AbstractActor {
         // return (getTime() + "[user][" + source + "] File received: " + file);
   }
 
+  // Group-related
+  static public class ClientGroupCreate {
+    public final String group_name;
+    public ClientGroupCreate(String group_name) {
+        this.group_name = group_name;
+    }
+  }
+  
+  static public class ClientGroupLeave {
+    public final String group_name;
+    public ClientGroupLeave(String group_name) {
+        this.group_name = group_name;
+    }
+  }
 
+  static public class ClientGroupText{
+    String group_name;
+    String text;
+    public ClientGroupText(String group_name, String text){
+      this.group_name = group_name;
+      this.text = text;
+    }
+  }
 
 
 
@@ -122,8 +136,6 @@ public class User extends AbstractActor {
   @Override
   public Receive createReceive() {
     return receiveBuilder()
-        .match(ActionSuccess.class, x -> log.info(x.getMessage()))
-        .match(ActionFailed.class, x -> log.info(x.getError()))
         // User-related
         .match(ClientConnectMessage.class, x -> connectUser(x.username))
         .match(ClientDisconnectMessage.class, x -> disconnectUser())
@@ -133,6 +145,14 @@ public class User extends AbstractActor {
         .match(UserFileMessage.class, x -> printFile(x.source, x.file))
         // Group-related
         .match(ClientGroupCreate.class, x -> createGroup(x.group_name))
+        .match(ClientGroupLeave.class, x -> leaveGroup(x.group_name))
+        .match(ClientGroupText.class, x -> sendGroupText(x.group_name, x.text))
+        .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.text))
+        // Actions received from server
+        .match(ActionSuccess.class, x -> log.info(x.getMessage()))
+        .match(ActionFailed.class, x -> log.info(x.getError()))
+        .match(GroupTextMessage.class, x -> log.info(x.getMessage()))
+        .match(GroupFileMessage.class, x -> log.info(x.getMessage()))
         .build();
   }
 
@@ -202,6 +222,14 @@ public class User extends AbstractActor {
     managerServer.tell(new CreateGroupMessage(group_name, username), getSelf());
   }
 
+  private void leaveGroup(String group_name){
+    managerServer.tell(new LeaveGroupMessage(group_name, username), getSelf());
+  }
+
+  private void sendGroupText(String group_name, String text){
+    System.out.println("[debug] told manager about group text");
+    managerServer.tell(new GroupTextMessage(username, group_name, text), getSelf());
+  }
   // ------------createReceive Assisting methods------------ 
   private ActorRef getTargetRef(String target_name){
     Future<Object> future = Patterns.ask(managerServer, new GetUserDestMessage(target_name), timeout_time);

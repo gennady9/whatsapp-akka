@@ -25,8 +25,11 @@ public class GroupTextMessage implements Serializable {
     }
 
     public String getMessage() {
+        return String.format("[%s][%s][%s]%s", getTime(), this.groupName, this.username, this.message);
+    }
+
+    static private String getTime(){
         LocalDateTime now = LocalDateTime.now();
-        String time = String.format("%d:%d", now.getHour(), now.getMinute());
-        return String.format("[%s][%s][%s]%s", time, this.groupName, this.username, this.message);
+        return (now.getHour()+":"+now.getMinute());
     }
 }
