@@ -10,6 +10,8 @@ import whatsapp.common.ActionSuccess;
 import whatsapp.common.CreateGroupMessage;
 import whatsapp.common.DeleteGroupMessage;
 import whatsapp.common.GroupTextMessage;
+import whatsapp.common.InviteUserApproveMessage;
+import whatsapp.common.InviteUserMessage;
 import whatsapp.common.LeaveGroupMessage;
 import whatsapp.common.GroupFileMessage;
 import whatsapp.common.MuteUserMessage;
@@ -47,26 +49,44 @@ public class GroupActor extends AbstractActor {
         return receiveBuilder().match(CreateGroupMessage.class, this::createGroup)
                 .match(GroupTextMessage.class, (GroupTextMessage msg) -> broadcastMessage(msg.getUsername(), msg))
                 .match(GroupFileMessage.class, (GroupFileMessage msg) -> broadcastMessage(msg.getUsername(), msg))
-                .match(MuteUserMessage.class, this::muteUser).match(LeaveGroupMessage.class, this::leaveGroup).build();
+                .match(MuteUserMessage.class, this::muteUser).match(LeaveGroupMessage.class, this::leaveGroup)
+                .match(InviteUserMessage.class, this::inviteUser)
+                .match(InviteUserApproveMessage.class, (message) -> addUserToGroup(message.getUsername()))
+                .build();
+    }
+
+    private void inviteUser(InviteUserMessage message) {
+        String user = message.getUsername();
+        if (!this.admin.equals(user) && !this.coAdmins.contains(user)) {
+            getSender().tell(new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)), getSelf());
+            return;
+        }
+
+        String target = message.getTargetUser();
+        if (users.contains(target)) {
+            getSender().tell(new ActionFailed(
+                    String.format("%s is already in %s", target, this.groupName)), getSelf());
+            return;
+        }
+
+        getSender().tell(message, getSelf());
     }
 
     private void leaveGroup(LeaveGroupMessage message) {
         String username = message.getUsername();
         if (!users.contains(username)) {
-            getSender().tell(
-                    new ActionFailed(String.format("%s is not in %s", username, this.groupName)),
-                    getSelf());
+            getSender().tell(new ActionFailed(String.format("%s is not in %s", username, this.groupName)), getSelf());
             return;
         }
         removeUserFromGroup(username, getSender());
-        router.route(new ActionFailed(String.format("%s has left %s!", username, this.groupName)),
-                getSelf());
+        router.route(new ActionFailed(String.format("%s has left %s!", username, this.groupName)), getSelf());
 
     }
 
     private void removeUserFromGroup(String username, ActorRef actorRef) {
         if (this.admin.equals(username)) {
-            router.route(new GroupTextMessage(username, this.groupName, String.format("%s admin has closed %s!", this.groupName, this.groupName)), getSelf());
+            router.route(new GroupTextMessage(username, this.groupName,
+                    String.format("%s admin has closed %s!", this.groupName, this.groupName)), getSelf());
             getContext().parent().tell(new DeleteGroupMessage(groupName), getSelf());
             return;
         }
@@ -89,15 +109,19 @@ public class GroupActor extends AbstractActor {
         router.route(msg, getSelf());
     }
 
+    private void addUserToGroup(String username){
+        this.users.add(username);
+        this.router = this.router.addRoutee(new ActorRefRoutee(getSender()));
+    }
+
     private void createGroup(CreateGroupMessage createGroupMessage) {
         if (!createGroupMessage.getAdmin().equals(this.admin) || !createGroupMessage.getName().equals(this.groupName)) {
             return;
         }
 
-        this.users.add(this.admin);
-        this.router = this.router.addRoutee(new ActorRefRoutee(getSender()));
+        addUserToGroup(this.admin);
 
-        System.out.println("Server: group= '"+ this.groupName + "' created successfully by user=" + this.admin);
+        System.out.println("Server: group= '" + this.groupName + "' created successfully by user=" + this.admin);
         this.router.route(new ActionSuccess(String.format("Group %s created successfully.", this.groupName)),
                 getSelf());
     }

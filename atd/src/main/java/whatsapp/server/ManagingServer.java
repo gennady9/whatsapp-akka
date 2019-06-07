@@ -17,6 +17,8 @@ import whatsapp.common.DeleteGroupMessage;
 import whatsapp.common.GetUserDestMessage;
 import whatsapp.common.GroupFileMessage;
 import whatsapp.common.GroupTextMessage;
+import whatsapp.common.InviteUserApproveMessage;
+import whatsapp.common.InviteUserMessage;
 import whatsapp.common.MuteUserMessage;
 
 public class ManagingServer extends AbstractActor {
@@ -44,8 +46,21 @@ public class ManagingServer extends AbstractActor {
             .match(MuteUserMessage.class, this::handleMuteUser)
             .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
+            .match(InviteUserMessage.class, this::inviteUser)
+            .match(InviteUserApproveMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
             .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
             .build();
+    }
+
+    private void inviteUser(InviteUserMessage message) {
+        if(!this.connectedUsers.containsKey(message.getUsername())){
+            getSender().tell(new ActionFailed(
+                String.format("%s does not exist!", message.getUsername())), getSelf());
+
+            return;
+        }
+
+        handleGroupForward(message.getGroupName(), message);
     }
 
     private void createGroup(CreateGroupMessage createGroupMessage) {
