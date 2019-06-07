@@ -1,9 +1,10 @@
 package whatsapp.client;
 // package internal imports
-import whatsapp.client.User.ClientConnectMessage;
-import whatsapp.client.User.ClientDisconnectMessage;
-import whatsapp.client.User.ClientSendText;
-import whatsapp.client.User.ClientSendFile;
+import whatsapp.client.User.*;
+// import whatsapp.client.User.ClientConnectMessage;
+// import whatsapp.client.User.ClientDisconnectMessage;
+// import whatsapp.client.User.ClientSendText;
+// import whatsapp.client.User.ClientSendFile;
 
 // Akka imports
 import akka.actor.ActorRef;
@@ -20,6 +21,8 @@ import java.nio.file.Paths;
 public class Main {
   public static void main(String[] args) {
     final ActorSystem system = ActorSystem.create("client", ConfigFactory.load("client"));
+
+      //  ------------Main - input ------------ 
     try {
       //#create-user-actor
       final ActorRef userActor = 
@@ -33,8 +36,13 @@ public class Main {
             input = scanner.nextLine();
             if(input.startsWith("/user")){
               handle_user_cmd(userActor, input);
+            }else if(input.startsWith("/group")){
+              handle_group_cmd(userActor, input);
+            }else if(input.startsWith("exit")){
+              system.terminate();
+            }else{
+              System.out.println("Unknown command: " + input/* + " ,Try again or type 'exit'"*/);
             }
-            // TODO: handle /group
         }
 
     // } catch (IOException ioe) {
@@ -43,6 +51,7 @@ public class Main {
     }
   }
 
+    //  ------------ Handeling user-related commands ------------ 
   private static void handle_user_cmd(ActorRef userActor, String input){
     String[] input_array = input.split("\\s+");  // remove spaces and seperate
     // input array structure:
@@ -55,6 +64,41 @@ public class Main {
       userActor.tell(new ClientConnectMessage(param), ActorRef.noSender());
 
     }else if(command.equals("disconnect")){
+
+      userActor.tell(new ClientDisconnectMessage(), ActorRef.noSender());
+
+    // USER COMMUNICATION
+    }else if(command.equals("text")){
+
+      String target_name = input_array[2];
+      String text = input_array[3];
+      userActor.tell(new ClientSendText(target_name, text), ActorRef.noSender());
+
+    }else if(command.equals("file")){
+
+      String target_name = input_array[2];
+      String path = input_array[3];
+      byte[] file = readFile(path);
+      if (file != null)
+        userActor.tell(new ClientSendFile(target_name, file), ActorRef.noSender());
+
+    }else{ // unknown command, error? what to do in this case..
+    }
+  }
+
+  //  ------------ Handeling group-related commands ------------ 
+  private static void handle_group_cmd(ActorRef userActor, String input){
+    String[] input_array = input.split("\\s+");  // remove spaces and seperate
+    // input array structure:
+    // [0] /group, [1] command, [2] first param
+    String command = input_array[1];
+    // handeling command
+    if      (command.equals("create")){
+
+      String group_name = input_array[2];
+      userActor.tell(new ClientGroupCreate(group_name), ActorRef.noSender());
+
+    }else if(command.equals("leave")){
 
       userActor.tell(new ClientDisconnectMessage(), ActorRef.noSender());
 

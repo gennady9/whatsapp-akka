@@ -1,11 +1,14 @@
 package whatsapp.client;
 
 // Package internal imports
+import whatsapp.common.*;
+/*
 import whatsapp.common.ConnectMessage;
 import whatsapp.common.DisconnectMessage;
 import whatsapp.common.GetUserDestMessage;
 import whatsapp.common.ActionFailed;
 import whatsapp.common.ActionSuccess;
+*/
 import whatsapp.server.ManagingServer;
 // Akka imports
 import akka.actor.AbstractActor;
@@ -62,6 +65,14 @@ public class User extends AbstractActor {
     public ClientDisconnectMessage() {}
   }
 
+  static public class ClientGroupCreate {
+    public final String group_name;
+    public ClientGroupCreate(String group_name) {
+        this.group_name = group_name;
+    }
+  }
+  
+
   static public class ClientSendText{
     String target_name;
     String text;
@@ -111,12 +122,15 @@ public class User extends AbstractActor {
   @Override
   public Receive createReceive() {
     return receiveBuilder()
+        // User-related
         .match(ClientConnectMessage.class, x -> connectUser(x.username))
         .match(ClientDisconnectMessage.class, x -> disconnectUser())
         .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
         .match(ClientSendFile.class, x -> sendUserFile(x.target_name, x.file))
         .match(UserTextMessage.class, x -> { log.info(x.getMessage()); })
         .match(UserFileMessage.class, x -> printFile(x.source, x.file))
+        // Group-related
+        .match(ClientGroupCreate.class, x ->createGroup(x.group_name))
         .build();
   }
 
@@ -180,6 +194,11 @@ public class User extends AbstractActor {
         System.out.println("print file error = " + error);
       }
     }
+
+  // ------------createReceive group-related---------------- 
+  private void createGroup(String group_name){
+    managerServer.tell(new CreateGroupMessage(username, group_name), getSelf());
+  }
 
   // ------------createReceive Assisting methods------------ 
   private ActorRef getTargetRef(String target_name){
