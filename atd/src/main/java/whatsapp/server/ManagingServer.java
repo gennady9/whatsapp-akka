@@ -6,6 +6,8 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.function.Function;
+
 import akka.actor.ActorRef;
 import whatsapp.common.ConnectMessage;
 import whatsapp.common.DisconnectMessage;
@@ -41,54 +43,33 @@ public class ManagingServer extends AbstractActor {
 
     @Override
     public Receive createReceive() {
-        return receiveBuilder()
-            .match(ConnectMessage.class, this::connectUser)
-            .match(DisconnectMessage.class, this::disconnectUser)
-            .match(CreateGroupMessage.class, this::createGroup)
-            .match(LeaveGroupMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
-            .match(GetUserDestMessage.class, this::getUserDest)
-            .match(MuteUserMessage.class, this::handleMuteUser)
-            .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
-            .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
-            .match(InviteUserMessage.class, this::inviteUser)
-            .match(InviteUserApproveMessage.class, this::inviteUserApprove)
-            .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
-            .match(RemoveUserFromGroupMessage.class, this::removeUserFromGroup)
-            .match(UnmuteUserMessage.class, this::unmuteUser)
-            .match(RemoveCoAdminMessage.class, this::removeCoadmin)
-            .match(AddCoAdminMessage.class, this::addCoadmin)
-            .build();
-    }
-
-    private void removeCoadmin(RemoveCoAdminMessage message) {
-        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
-        handleGroupForward(message.getGroupName(), message);
-    }
-
-    private void addCoadmin(AddCoAdminMessage message) {
-        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
-        handleGroupForward(message.getGroupName(), message);
-    }
-
-    private void unmuteUser(UnmuteUserMessage message) {
-        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
-        handleGroupForward(message.getGroupName(), message);
-    }
-
-    private void inviteUserApprove(InviteUserApproveMessage message) {
-        message.setTargetActor(this.connectedUsers.get(message.getUsername()));
-        handleGroupForward(message.getGroupName(), message);
-    }
-
-    private void removeUserFromGroup(RemoveUserFromGroupMessage message) {
-        message.setTargetActor(this.connectedUsers.get(message.getTarget()));
-        handleGroupForward(message.getGroupName(), message);
+        return receiveBuilder().match(ConnectMessage.class, this::connectUser)
+                .match(DisconnectMessage.class, this::disconnectUser).match(CreateGroupMessage.class, this::createGroup)
+                .match(LeaveGroupMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
+                .match(GetUserDestMessage.class, this::getUserDest)
+                .match(MuteUserMessage.class, this::handleMuteUser)
+                .match(GroupFileMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
+                .match(GroupTextMessage.class, (message) -> handleGroupForward(message.getGroupName(), message))
+                .match(InviteUserMessage.class, this::inviteUser)
+                .match(InviteUserApproveMessage.class, message -> handleGroupForward(message.getGroupName(), message,
+                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
+                .match(DeleteGroupMessage.class, this::deleteGroup) // Recieves from GroupActor ..
+                .match(RemoveUserFromGroupMessage.class, message -> handleGroupForward(message.getGroupName(), message,
+                () -> message.setTargetActor(this.connectedUsers.get(message.getTarget()))))
+                .match(UnmuteUserMessage.class,
+                        message -> handleGroupForward(message.getGroupName(), message,
+                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
+                .match(RemoveCoAdminMessage.class,
+                        message -> handleGroupForward(message.getGroupName(), message,
+                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
+                .match(AddCoAdminMessage.class, message -> handleGroupForward(message.getGroupName(), message,
+                        () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
+                .build();
     }
 
     private void inviteUser(InviteUserMessage message) {
-        if(!this.connectedUsers.containsKey(message.getUsername())){
-            getSender().tell(new ActionFailed(
-                String.format("%s does not exist!", message.getUsername())), getSelf());
+        if (!this.connectedUsers.containsKey(message.getUsername())) {
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getUsername())), getSelf());
 
             return;
         }
@@ -98,38 +79,40 @@ public class ManagingServer extends AbstractActor {
 
     private void createGroup(CreateGroupMessage createGroupMessage) {
         if (this.groups.containsKey(createGroupMessage.getName())) {
-            System.out.println("Server: group '" + createGroupMessage.getName() + "' already exists"); // TODO: maybe delete
-            getSender().tell(new ActionFailed(
-                    String.format("%s already exists.", createGroupMessage.getName())), getSelf());
+            System.out.println("Server: group '" + createGroupMessage.getName() + "' already exists"); // TODO: maybe
+                                                                                                       // delete
+            getSender().tell(new ActionFailed(String.format("%s already exists.", createGroupMessage.getName())),
+                    getSelf());
             return;
         }
-        
-        ActorRef newGroupActor = getContext().actorOf(GroupActor.props(createGroupMessage.getName(), createGroupMessage.getAdmin()), createGroupMessage.getName());
+
+        ActorRef newGroupActor = getContext().actorOf(
+                GroupActor.props(createGroupMessage.getName(), createGroupMessage.getAdmin()),
+                createGroupMessage.getName());
         this.groups.put(createGroupMessage.getName(), newGroupActor);
         newGroupActor.forward(createGroupMessage, getContext());
     }
 
-    private void getUserDest(GetUserDestMessage getUserDestMessage) {
-        if (!this.connectedUsers.containsKey(getUserDestMessage.getUsername())) {
-            getSender().tell(new ActionFailed(
-                    String.format("%s does not exist!", getUserDestMessage.getUsername())), getSelf());
+    private void getUserDest(GetUserDestMessage message) {
+        if (!this.connectedUsers.containsKey(message.getUsername())) {
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getUsername())),
+                    getSelf());
 
             return;
         }
 
-        ActorRef target = this.connectedUsers.get(getUserDestMessage.getUsername());
+        ActorRef target = this.connectedUsers.get(message.getUsername());
         getSender().tell(target, getSelf());
     }
 
-    private void deleteGroup(DeleteGroupMessage message){
+    private void deleteGroup(DeleteGroupMessage message) {
         ActorRef group = this.groups.remove(message.getGroupName());
         this.getContext().stop(group);
     }
 
-    private void handleGroupForward(String groupName, Object message){
+    private void handleGroupForward(String groupName, Object message) {
         if (!this.groups.containsKey(groupName)) {
-            getSender().tell(new ActionFailed(
-                    String.format("%s does not exist!", groupName)), getSelf());
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", groupName)), getSelf());
 
             return;
         }
@@ -137,17 +120,20 @@ public class ManagingServer extends AbstractActor {
         groups.get(groupName).forward(message, getContext());
     }
 
-    private void handleMuteUser(MuteUserMessage message){
+    private void handleGroupForward(String groupName, Object message, Runnable setup) {
+        setup.run();
+        this.handleGroupForward(groupName, message);
+    }
+
+    private void handleMuteUser(MuteUserMessage message) {
         String groupName = message.getGroupName();
         String target = message.getTarget();
         if (!this.groups.containsKey(groupName)) {
-            getSender().tell(new ActionFailed(
-                    String.format("%s does not exist!", groupName)), getSelf());
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", groupName)), getSelf());
 
             return;
         } else if (!this.connectedUsers.containsKey(target)) {
-            getSender().tell(new ActionFailed(
-                    String.format("%s does not exist!", target)), getSelf());
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", target)), getSelf());
 
             return;
         }
@@ -157,39 +143,26 @@ public class ManagingServer extends AbstractActor {
         groups.get(groupName).forward(message, getContext());
     }
 
-    private void connectUser(ConnectMessage connectMessage) {
-        String message;
-        if (this.connectedUsers.containsKey(connectMessage.getUsername())) {
-            message = String.format("%s already exists.", connectMessage.getUsername());
-            getSender().tell(new ActionFailed(
-                    message), getSelf());
-
-            log.info(message);
+    private void connectUser(ConnectMessage message) {
+        if (this.connectedUsers.containsKey(message.getUsername())) {
+            getSender().tell(new ActionFailed(String.format("%s already exists.", message.getUsername())), getSelf());
 
             return;
         }
 
-        this.connectedUsers.put(connectMessage.getUsername(), connectMessage.getUserActor());
-        message = String.format("%s connected successfully.", connectMessage.getUsername());
-        getSender().tell(new ActionSuccess(message), getSelf());
-
-        log.info(message);
+        this.connectedUsers.put(message.getUsername(), message.getUserActor());
+        getSender().tell(new ActionSuccess(String.format("%s connected successfully.", message.getUsername())), getSelf());
     }
 
-    private void disconnectUser(DisconnectMessage disconnectMessage) {
-        // TODO:: leave groups
-        String message;
-        if (this.connectedUsers.containsKey(disconnectMessage.getUsername())) {
-            this.connectedUsers.remove(disconnectMessage.getUsername());
-            message = String.format("%s disconnected successfully.", disconnectMessage.getUsername());
-            getSender().tell(new ActionSuccess(
-                    message), getSelf());
-        } else {
-            message = String.format("%s failed to disconnected.", disconnectMessage.getUsername());
-            getSender().tell(new ActionFailed(
-                    message), getSelf());
+    private void disconnectUser(DisconnectMessage message) {
+        if (!this.connectedUsers.containsKey(message.getUsername())) {
+            getSender().tell(new ActionFailed(String.format("%s failed to disconnected.", message.getUsername())), getSelf());
+
+            return;
         }
 
-        log.info(message);
+        this.connectedUsers.remove(message.getUsername());
+        getSender().tell(new ActionSuccess(String.format("%s disconnected successfully.", message.getUsername())), getSelf());
+        groups.values().forEach(ref -> ref.forward(message, getContext()));
     }
 }

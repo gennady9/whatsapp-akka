@@ -11,6 +11,7 @@ import whatsapp.common.AddCoAdminMessage;
 import whatsapp.common.AutoUnmuteUserMessage;
 import whatsapp.common.CreateGroupMessage;
 import whatsapp.common.DeleteGroupMessage;
+import whatsapp.common.DisconnectMessage;
 import whatsapp.common.GroupTextMessage;
 import whatsapp.common.InviteUserApproveMessage;
 import whatsapp.common.InviteUserMessage;
@@ -66,6 +67,7 @@ public class GroupActor extends AbstractActor {
                                 false))
                 .match(RemoveUserFromGroupMessage.class, this::removeUser)
                 .match(AddCoAdminMessage.class, this::addCoadmin).match(RemoveCoAdminMessage.class, this::removeCoadmin)
+                .match(DisconnectMessage.class, message -> deleteUserFromGroup(message.getUsername(), getSender()))
                 .build();
     }
 
