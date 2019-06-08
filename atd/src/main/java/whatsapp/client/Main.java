@@ -92,10 +92,14 @@ public class Main {
     // input array structure:
     // [0] /group, [1] command, [2] first param
     String command = input_array[1];
+    // String command = safeParamGet(input_array, 1);
+    // if((command = safeParamGet(input_array, 1)) == "invalid")
     // handeling command
     if      (command.equals("create")){
 
+      if(input_array.length < 3) return;
       String group_name = input_array[2];
+      
       userActor.tell(new ClientGroupCreate(group_name), ActorRef.noSender());
 
     }else if(command.equals("leave")){
@@ -135,7 +139,7 @@ public class Main {
       }
 
     }else if(command.equals("coadmin")){
-
+      if(input_array.length < 5) return;
       String action = input_array[2];
       String group_name = input_array[3];
       String target_name = input_array[4];
@@ -158,7 +162,16 @@ public class Main {
     catch(IOException error){ System.out.println(path + " path does not exist!"); }
     return data;
   }
+
+  private static String safeParamGet(String[] array, int index){
+    if(index > array.length - 1)
+      return array[0];
+    else
+      return array[index];
+  }
 }
+
+
 
 
 

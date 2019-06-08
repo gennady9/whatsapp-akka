@@ -51,15 +51,15 @@ public class ManagingServer extends AbstractActor {
                 .match(GroupTextMessage.class, (message) -> forwardMessageToGroup(message.getGroupName(), message))
                 .match(LeaveGroupMessage.class, (message) -> forwardMessageToGroup(message.getGroupName(), message))
                 .match(InviteUserApproveMessage.class, message -> handleGroupForward(message.getGroupName(), message,
-                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
+                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername())))) // TODO: maybe set target targetname?
                 .match(RemoveUserFromGroupMessage.class, message -> handleGroupForward(message.getGroupName(), message,
                                 () -> message.setTargetActor(this.connectedUsers.get(message.getTarget()))))
                 .match(UnmuteUserMessage.class, message -> handleGroupForward(message.getGroupName(), message,
                                 () -> message.setTargetActor(this.connectedUsers.get(message.getTarget()))))
                 .match(RemoveCoAdminMessage.class, message -> handleGroupForward(message.getGroupName(), message,
-                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
+                                () -> message.setTargetActor(this.connectedUsers.get(message.getTarget()))))
                 .match(AddCoAdminMessage.class, message -> handleGroupForward(message.getGroupName(), message,
-                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
+                                () -> message.setTargetActor(this.connectedUsers.get(message.getTarget()))))
                 .build();
     }
 

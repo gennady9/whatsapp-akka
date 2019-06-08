@@ -86,8 +86,6 @@ public class User extends AbstractActor {
         .match(ClientGroupUserUnmute.class, x -> unmuteUser(x.group_name, x.target_name))
         .match(ClientGroupAddCoAdmin.class, x -> addCoAdmin(x.group_name, x.target_name))
         .match(ClientGroupRemCoAdmin.class, x -> remCoAdmin(x.group_name, x.target_name))
-        
-        
         // Actions received
         //  from server
         .match(ActionSuccess.class, x -> log.info(x.getMessage()))
@@ -260,11 +258,11 @@ public class User extends AbstractActor {
   // }
 
   private void addCoAdmin(String group_name, String target_name){
-    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
+    managerServer.tell(new AddCoAdminMessage(group_name, username, target_name), getSelf());
   }
 
   private void remCoAdmin(String group_name, String target_name){
-    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
+    managerServer.tell(new RemoveCoAdminMessage(group_name, username, target_name), getSelf());
   }
   // ------------createReceive Assisting methods------------ 
   private ActorRef getTargetRef(String target_name){
