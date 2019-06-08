@@ -96,7 +96,7 @@ public class User extends AbstractActor {
         .match(GroupFileMessage.class, x -> printFile(x.username, x.file))
         .match(InviteUserMessage.class, x -> sendInviteToTarget(x.getGroupName(), x.getTargetUser()))
         .match(RemoveUserFromGroupMessage.class, x -> handleRemoveTarget(x.getGroupName(), x.getTargetActor()))
-
+        .match(MuteUserMessage.class, x -> handleMuteTarget(x.getGroupName(), x.getTargetActor(), x.getSeconds()))
         
         .build();
   }
@@ -238,6 +238,11 @@ public class User extends AbstractActor {
 
   private void muteUser(String group_name, String target_name, int mute_time){
     managerServer.tell(new MuteUserMessage(group_name, username, target_name, mute_time), getSelf());
+  }
+  private void handleMuteTarget(String group_name, ActorRef muted_user, int seconds){ // Admin message to removed user
+    String message = "You have been muted for "+seconds+" in "+group_name+" by "+username+"!";
+    String tagged_message = (getTime() + "["+ group_name +"][" + username + "]" + message);
+    muted_user.tell(new UserLogMessage(tagged_message), getSelf());
   }
 
   private void unmuteUser(String group_name, String target_name){

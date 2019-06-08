@@ -244,9 +244,10 @@ public class GroupActor extends AbstractActor {
                 getSelf(), new AutoUnmuteUserMessage(username, target, message.getTargetActor(), this.groupName),
                 this.getContext().getSystem().dispatcher(), getSender());
 
-        message.getTargetActor()
-                .tell(new GroupTextMessage(username, this.groupName, String.format(
-                        "You have been muted for %d in %s by %s!", message.getSeconds(), this.groupName, username)),
-                        getSelf());
+        getSender().tell(message, getSelf());
+        // message.getTargetActor()
+        //         .tell(new GroupTextMessage(username, this.groupName, String.format(
+        //                 "You have been muted for %d in %s by %s!", message.getSeconds(), this.groupName, username)),
+        //                 getSelf());
     }
 }
