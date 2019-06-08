@@ -117,6 +117,15 @@ static public class ClientConnectMessage implements Serializable{
   static public class ClientInviteAccepted implements Serializable{}
   static public class ClientInviteDeclined implements Serializable{}
 
+  static public class ClientRemoveUser implements Serializable{
+    String group_name;
+    String target_name;
+    public ClientRemoveUser(String group_name, String target_name){
+      this.group_name = group_name;
+      this.target_name = target_name;
+    }
+  }
+
   static public class ClientGroupUserMute implements Serializable{
     String group_name;
     String target_name;
