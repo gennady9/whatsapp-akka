@@ -52,62 +52,26 @@ public class GroupActor extends AbstractActor {
 
     @Override
     public Receive createReceive() {
-        return receiveBuilder().match(CreateGroupMessage.class, this::createGroup)
-                .match(GroupTextMessage.class, (GroupTextMessage msg) -> broadcastMessage(msg.getUsername(), msg))
-                .match(GroupFileMessage.class, (GroupFileMessage msg) -> broadcastMessage(msg.getUsername(), msg))
-                .match(MuteUserMessage.class, this::muteUser).match(LeaveGroupMessage.class, this::leaveGroup)
-                .match(InviteUserMessage.class, this::inviteUser)
-                .match(InviteUserApproveMessage.class,
-                        (message) -> addUserToGroup(message.getUsername(), message.getTargetActor()))
-                .match(AutoUnmuteUserMessage.class,
-                        message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(),
+        return receiveBuilder()
+                .match(GroupTextMessage.class, message -> broadcastMessage(message.getUsername(), message))
+                .match(GroupFileMessage.class, message -> broadcastMessage(message.getUsername(), message))
+                .match(CreateGroupMessage.class, this::handleCreateGroupMessage)
+                .match(MuteUserMessage.class, this::handleMuteUserMessage)
+                .match(LeaveGroupMessage.class, this::handleLeaveGroupMessage)
+                .match(InviteUserMessage.class, this::handleInviteUserMessage)
+                .match(RemoveUserFromGroupMessage.class, this::handleRemoveUserMessage)
+                .match(AddCoAdminMessage.class, this::handleAddCoadminMessage)
+                .match(RemoveCoAdminMessage.class, this::handleRemoveCoadminMessage)
+                .match(InviteUserApproveMessage.class, message -> addUserToGroup(message.getUsername(), message.getTargetActor()))
+                .match(AutoUnmuteUserMessage.class, message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(),
                                 true))
-                .match(UnmuteUserMessage.class,
-                        message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(),
+                .match(UnmuteUserMessage.class, message -> unmuteUser(message.getUsername(), message.getTarget(), message.getTargetActor(),
                                 false))
-                .match(RemoveUserFromGroupMessage.class, this::removeUser)
-                .match(AddCoAdminMessage.class, this::addCoadmin).match(RemoveCoAdminMessage.class, this::removeCoadmin)
                 .match(DisconnectMessage.class, message -> deleteUserFromGroup(message.getUsername(), getSender()))
                 .build();
     }
 
-    private void addCoadmin(AddCoAdminMessage message) {
-        if (!this.users.contains(message.getTarget())) {
-            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getTarget())), getSelf());
-            return;
-        }
-
-        if (!this.hasAdminPerms(message.getUsername())) {
-            getSender().tell(
-                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
-                    getSelf());
-            return;
-        }
-
-        this.coAdmins.add(message.getTarget());
-
-        message.getTargetActor().tell(new GroupTextMessage(message.getUsername(), this.groupName,
-                String.format("You have been promoted to co-admin in %s!", this.groupName)), getSelf());
-    }
-
-    private void removeCoadmin(RemoveCoAdminMessage message) {
-        if (!this.users.contains(message.getTarget())) {
-            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getTarget())), getSelf());
-            return;
-        }
-
-        if (!this.hasAdminPerms(message.getUsername())) {
-            getSender().tell(
-                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
-                    getSelf());
-            return;
-        }
-
-        this.coAdmins.remove(message.getTarget());
-
-        message.getTargetActor().tell(new GroupTextMessage(message.getUsername(), this.groupName,
-                String.format("You have been demoted to user in %s!", this.groupName)), getSelf());
-    }
+    // Methods
 
     private void unmuteUser(String username, String target, ActorRef targetRef, boolean isAuto) {
         if (!this.mutedUsers.contains(target)) {
@@ -122,61 +86,6 @@ public class GroupActor extends AbstractActor {
                 getSelf());
     }
 
-    private void removeUser(RemoveUserFromGroupMessage message) {
-        String user = message.getUsername();
-        if (!this.hasAdminPerms(user)) {
-            getSender().tell(
-                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
-                    getSelf());
-            return;
-        }
-
-        if (!this.users.contains(message.getTarget())) {
-            getSender().tell(new ActionFailed(String.format("%s is not in %s!", message.getTarget(), this.groupName)),
-                    getSelf());
-            return;
-        }
-
-        deleteUserFromGroup(message.getTarget(), message.getTargetActor());
-
-        message.getTargetActor()
-                .tell(new GroupTextMessage(message.getUsername(), this.groupName,
-                        String.format("You have been removed from %s by %s!", this.groupName, message.getUsername())),
-                        getSelf());
-    }
-
-    private boolean hasAdminPerms(String username) {
-        return this.admin.equals(username) || this.coAdmins.contains(username);
-    }
-
-    private void inviteUser(InviteUserMessage message) {
-        String user = message.getUsername();
-        if (!this.hasAdminPerms(user)) {
-            getSender().tell(
-                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
-                    getSelf());
-            return;
-        }
-
-        String target = message.getTargetUser();
-        if (users.contains(target)) {
-            getSender().tell(new ActionFailed(String.format("%s is already in %s", target, this.groupName)), getSelf());
-            return;
-        }
-
-        getSender().tell(message, getSelf());
-    }
-
-    private void leaveGroup(LeaveGroupMessage message) {
-        String username = message.getUsername();
-        if (!users.contains(username)) {
-            getSender().tell(new ActionFailed(String.format("%s is not in %s", username, this.groupName)), getSelf());
-            return;
-        }
-        deleteUserFromGroup(username, getSender());
-        router.route(new ActionFailed(String.format("%s has left %s!", username, this.groupName)), getSelf());
-
-    }
 
     private void deleteUserFromGroup(String username, ActorRef actorRef) {
         if (this.admin.equals(username)) {
@@ -209,7 +118,13 @@ public class GroupActor extends AbstractActor {
         this.router = this.router.addRoutee(new ActorRefRoutee(actor));
     }
 
-    private void createGroup(CreateGroupMessage createGroupMessage) {
+    private boolean hasAdminPerms(String username) {
+        return this.admin.equals(username) || this.coAdmins.contains(username);
+    }
+
+    // Message handlers
+
+    private void handleCreateGroupMessage(CreateGroupMessage createGroupMessage) {
         if (!createGroupMessage.getAdmin().equals(this.admin) || !createGroupMessage.getName().equals(this.groupName)) {
             return;
         }
@@ -221,7 +136,97 @@ public class GroupActor extends AbstractActor {
                 getSelf());
     }
 
-    private void muteUser(MuteUserMessage message) {
+    private void handleAddCoadminMessage(AddCoAdminMessage message) {
+        if (!this.users.contains(message.getTarget())) {
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getTarget())), getSelf());
+            return;
+        }
+
+        if (!this.hasAdminPerms(message.getUsername())) {
+            getSender().tell(
+                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    getSelf());
+            return;
+        }
+
+        this.coAdmins.add(message.getTarget());
+
+        message.getTargetActor().tell(new GroupTextMessage(message.getUsername(), this.groupName,
+                String.format("You have been promoted to co-admin in %s!", this.groupName)), getSelf());
+    }
+
+    private void handleRemoveCoadminMessage(RemoveCoAdminMessage message) {
+        if (!this.users.contains(message.getTarget())) {
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getTarget())), getSelf());
+            return;
+        }
+
+        if (!this.hasAdminPerms(message.getUsername())) {
+            getSender().tell(
+                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    getSelf());
+            return;
+        }
+
+        this.coAdmins.remove(message.getTarget());
+
+        message.getTargetActor().tell(new GroupTextMessage(message.getUsername(), this.groupName,
+                String.format("You have been demoted to user in %s!", this.groupName)), getSelf());
+    }
+
+    private void handleRemoveUserMessage(RemoveUserFromGroupMessage message) {
+        String user = message.getUsername();
+        if (!this.hasAdminPerms(user)) {
+            getSender().tell(
+                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    getSelf());
+            return;
+        }
+
+        if (!this.users.contains(message.getTarget())) {
+            getSender().tell(new ActionFailed(String.format("%s is not in %s!", message.getTarget(), this.groupName)),
+                    getSelf());
+            return;
+        }
+
+        deleteUserFromGroup(message.getTarget(), message.getTargetActor());
+
+        message.getTargetActor()
+                .tell(new GroupTextMessage(message.getUsername(), this.groupName,
+                        String.format("You have been removed from %s by %s!", this.groupName, message.getUsername())),
+                        getSelf());
+    }
+
+    private void handleInviteUserMessage(InviteUserMessage message) {
+        String user = message.getUsername();
+        if (!this.hasAdminPerms(user)) {
+            getSender().tell(
+                    new ActionFailed(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    getSelf());
+            return;
+        }
+
+        String target = message.getTargetUser();
+        if (users.contains(target)) {
+            getSender().tell(new ActionFailed(String.format("%s is already in %s", target, this.groupName)), getSelf());
+            return;
+        }
+
+        getSender().tell(message, getSelf());
+    }
+
+    private void handleLeaveGroupMessage(LeaveGroupMessage message) {
+        String username = message.getUsername();
+        if (!users.contains(username)) {
+            getSender().tell(new ActionFailed(String.format("%s is not in %s", username, this.groupName)), getSelf());
+            return;
+        }
+        deleteUserFromGroup(username, getSender());
+        router.route(new ActionFailed(String.format("%s has left %s!", username, this.groupName)), getSelf());
+
+    }
+
+    private void handleMuteUserMessage(MuteUserMessage message) {
         String username = message.getUsername(); // TODO::check this mess..
         // admin check...
         if (!this.admin.equals(username) && !this.coAdmins.contains(username)) {
@@ -238,8 +243,6 @@ public class GroupActor extends AbstractActor {
             this.mutedUsers.add(target);
         }
 
-        // this.router = this.router.removeRoutee(message.getTargetActor());
-
         this.getContext().getSystem().scheduler().scheduleOnce(Duration.ofMillis(message.getSeconds() * 1000),
                 getSelf(), new AutoUnmuteUserMessage(username, target, message.getTargetActor(), this.groupName),
                 this.getContext().getSystem().dispatcher(), getSender());
@@ -248,23 +251,5 @@ public class GroupActor extends AbstractActor {
                 .tell(new GroupTextMessage(username, this.groupName, String.format(
                         "You have been muted for %d in %s by %s!", message.getSeconds(), this.groupName, username)),
                         getSelf());
-
-        // this.getContext().getSystem().scheduler()
-        // .scheduleOnce(
-        // Duration.ofMillis(message.getSeconds() * 1000),
-        // () -> {
-        // if(this.mutedUsers.contains(target)){
-        // this.mutedUsers.remove(target);
-        // }
-
-        // this.router = this.router.addRoutee(new
-        // ActorRefRoutee(message.getTargetActor()));
-        // message.getTargetActor().tell(new GroupTextMessage(username, this.groupName,
-        // "You have been unmuted! Muting time is up!"),
-        // getSelf());
-        // }
-        // ,
-        // this.getContext().getSystem().dispatcher());
-
     }
 }
