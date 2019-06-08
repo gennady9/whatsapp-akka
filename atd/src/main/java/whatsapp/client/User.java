@@ -17,12 +17,9 @@ import scala.concurrent.Future;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 // Java imports
-import java.util.*;
-import java.io.Serializable;
+// import java.util.*;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,12 +37,12 @@ public class User extends AbstractActor {
   final ActorSelection managerServer = 
     getContext().actorSelection("akka://whatsapp@127.0.0.1:3553/user/managingServer");
     
-  final static Timeout timeout_time = new Timeout(Duration.create(1, TimeUnit.SECONDS));
+  final static Timeout timeout_time = new Timeout(Duration.create(2, TimeUnit.SECONDS));
   LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 // Props
   static public Props props() {
-    return Props.create(User.class, User::new); // TODO: new User or User::new? whats the difference
+    return Props.create(User.class, User::new);
   }
   //  ------------createReceive -- handeling client->user actor messages------------ 
   @Override
@@ -89,7 +86,7 @@ public class User extends AbstractActor {
         .build();
   }
 
-//  ------------createReceive user functions------------ 
+//  ------------createReceive Client->User functions------------ 
     private void connectUser(String username){
       if(username.length() < 1) { p("Already connected as " + username); }
       Future<Object> future = Patterns.ask(managerServer, new ConnectMessage(username, getSelf()), timeout_time); 
@@ -100,6 +97,8 @@ public class User extends AbstractActor {
           p(((ActionSuccess)res).getMessage());
         } else if(res instanceof ActionFailed){
           p(((ActionFailed)res).getError());
+        }else{
+          p("Server is offline!");
         }
       }catch(Exception error){
         p("server is offline!");
@@ -112,15 +111,13 @@ public class User extends AbstractActor {
       try {
         Object res = Await.result(future, timeout_time.duration());
         if(res instanceof ActionSuccess){
-          ActionSuccess actionRes = (ActionSuccess)res;
-          p(actionRes.getMessage());
+          p(((ActionSuccess)res).getMessage());
           username = "";
         } else if(res instanceof ActionFailed){
-          ActionFailed actionRes = (ActionFailed)res;
-          p(actionRes.getError());
+          p(((ActionFailed)res).getError());
         }
         else{
-          p("Connection failed!"); // TODO: maybe not needed + check if user is taken error works
+          p("server is offline! try again later!");
         }
       }catch(Exception error){
         p("server is offline! try again later!");
@@ -138,56 +135,37 @@ public class User extends AbstractActor {
       targetActorRef.tell(new UserFileMessage(username, file), getSelf());
     }
 
-    private void printFile(String source, byte[] file_data){
-      try{
-        Path path = Paths.get("whatsapp-file");
-        Files.write(path, file_data);
-        p(getTime() + "[user][" + source + "]" + "File received: " + path);
-      }catch (IOException error) {
-        System.out.println("print file error = " + error);
-      }
-    }
+
+
+  // ------------invite handle---------------- 
 
     private void sendInviteToTarget(String group_name, String target_name){
       ActorRef targetActorRef = getTargetRef(target_name);
       if(targetActorRef == null) { return; }
-      
       targetActorRef.tell(new UpdateTargetAboutInvite(group_name, username), getSelf());
-      
-      // targetActorRef.tell(new UserInviteRequest(group_name), getSelf());
-      // invites.add(new Pair(group_name, target_name));
-      // if user 2 confirm, send approved message UserTextMessage
-      // TODO: add decline message?
     }
 
-
-  // ------------invite handle---------------- 
     // Handle this user getting invited to specific group
     private void gotInvited(String group_name){ // User B
-      System.out.println("You have been invited to " + group_name + ", Accept?");
+      p("You have been invited to " + group_name + ", Accept?");
       inviter_ref = getSender();
       group_invited_to = group_name;      
-      // TODO: consider adding Invite declined [ and update invite list accordingly]
     }
     private void inviteAccepted(){ // User B
       if(inviter_ref == null || group_invited_to == null) 
         return;
       inviter_ref.tell(new UserInviteAccept(group_invited_to, username), getSelf());
-      // inviter_ref = null;
-      // group_invited_to = null;
+      inviter_ref = null;
+      group_invited_to = null;
     }
+
     private void inviteDeclined(){ // User B
       inviter_ref = null;
       group_invited_to = null;
-      return;
-      // if(inviter_ref == null || group_invited_to == null) 
-        // return;
-      // inviter_ref.tell(new UserInviteDecline(group_invited_to, username), getSelf());
     }
 
     private void handleInviteAccepted(String group_name, String accepter_name){ // User A
       managerServer.tell(new InviteUserApproveMessage(group_name, accepter_name), getSelf());
-      // TODO: consider doing ask and send only if success
       getSender().tell(new UserLogMessage("Welcome to " + group_name + "!"), getSelf());
     }
 
@@ -251,13 +229,27 @@ public class User extends AbstractActor {
   private ActorRef getTargetRef(String target_name){
     Future<Object> future = Patterns.ask(managerServer, new GetUserDestMessage(target_name), timeout_time);
     ActorRef targetRef = null;
-    try { targetRef = (ActorRef) Await.result(future, timeout_time.duration()); 
+    try { 
+      Object res = Await.result(future, timeout_time.duration());
+      if(res instanceof ActionFailed){
+        p(((ActionFailed)res).getError());
+      }else{
+        targetRef = (ActorRef) Await.result(future, timeout_time.duration()); 
+      }
     }catch(Exception error){ p("server is offline!"); return null;}
-    if(targetRef != null && targetRef == ActorRef.noSender()){
+    if(targetRef == ActorRef.noSender()){
       targetRef = null; // for doing nothing
-      System.out.println("server is offline! (Target received noSender)");
+      // p("server is offline! (Target received noSender)");
     }
     return targetRef;
+  }
+
+  private void printFile(String source, byte[] file_data){
+    try{
+      Path path = Paths.get("whatsapp-file");
+      Files.write(path, file_data);
+      p(getTime() + "[user][" + source + "]" + " File received: " + path);
+    }catch (IOException error) { return; }
   }
 
   static public String getTime(){
@@ -265,28 +257,8 @@ public class User extends AbstractActor {
     return ("["+now.getHour()+":"+now.getMinute()+"]");
   }
 
-  void p(String s){
+  private static void p(String s){
     System.out.println(s);
   }
 
 }
-
-
-
-// Code graveyard R.I.P
-
-
-/*
-  public class Pair<L,R> {
-    private L l;
-    private R r;
-    public Pair(L l, R r){
-        this.l = l;
-        this.r = r;
-    }
-    public L getL(){ return l; }
-    public R getR(){ return r; }
-    public void setL(L l){ this.l = l; }
-    public void setR(R r){ this.r = r; }
-}
-  */

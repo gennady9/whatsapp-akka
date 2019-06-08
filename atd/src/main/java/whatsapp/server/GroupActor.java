@@ -154,6 +154,9 @@ public class GroupActor extends AbstractActor {
             return;
         }
 
+        if(!message.getUsername().equals(admin))
+            return;
+
         this.coAdmins.add(message.getTarget());
 
         message.getTargetActor().tell(new GroupTextMessage(message.getUsername(), this.groupName,
@@ -172,6 +175,9 @@ public class GroupActor extends AbstractActor {
                     getSelf());
             return;
         }
+        
+        if(!message.getUsername().equals(admin))
+            return;
 
         this.coAdmins.remove(message.getTarget());
 
@@ -189,7 +195,7 @@ public class GroupActor extends AbstractActor {
         }
 
         if (!this.users.contains(message.getTarget())) {
-            getSender().tell(new ActionFailed(String.format("%s is not in %s!", message.getTarget(), this.groupName)),
+            getSender().tell(new ActionFailed(String.format("%s does not exist!", message.getTarget())),
                     getSelf());
             return;
         }
@@ -210,7 +216,7 @@ public class GroupActor extends AbstractActor {
 
         String target = message.getTargetUser();
         if (users.contains(target)) {
-            getSender().tell(new ActionFailed(String.format("%s is already in %s", target, this.groupName)), getSelf());
+            getSender().tell(new ActionFailed(String.format("%s is already in %s!", target, this.groupName)), getSelf());
             return;
         }
 
@@ -233,7 +239,7 @@ public class GroupActor extends AbstractActor {
         // admin check...
         if (!this.admin.equals(username) && !this.coAdmins.contains(username)) {
             getSender().tell(new ActionFailed(
-                    String.format("You are neither an admin nor a co-admin of %s! does not exist!", this.groupName)),
+                    String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
                     getSelf());
 
             return;

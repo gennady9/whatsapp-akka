@@ -51,7 +51,7 @@ public class ManagingServer extends AbstractActor {
                 .match(GroupTextMessage.class, (message) -> forwardMessageToGroup(message.getGroupName(), message))
                 .match(LeaveGroupMessage.class, (message) -> forwardMessageToGroup(message.getGroupName(), message))
                 .match(InviteUserApproveMessage.class, message -> handleGroupForward(message.getGroupName(), message,
-                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername())))) // TODO: maybe set target targetname?
+                                () -> message.setTargetActor(this.connectedUsers.get(message.getUsername()))))
                 .match(RemoveUserFromGroupMessage.class, message -> handleGroupForward(message.getGroupName(), message,
                                 () -> message.setTargetActor(this.connectedUsers.get(message.getTarget()))))
                 .match(UnmuteUserMessage.class, message -> handleGroupForward(message.getGroupName(), message,
@@ -160,7 +160,7 @@ public class ManagingServer extends AbstractActor {
         }
 
         this.connectedUsers.remove(message.getUsername());
-        getSender().tell(new ActionSuccess(String.format("%s disconnected successfully.", message.getUsername())), getSelf());
+        getSender().tell(new ActionSuccess(String.format("%s has been disconnected successfully!", message.getUsername())), getSelf());
         groups.values().forEach(ref -> ref.forward(message, getContext()));
     }
 }
