@@ -100,8 +100,6 @@ public class ManagingServer extends AbstractActor {
 
     private void handleCreateGroupMessage(CreateGroupMessage createGroupMessage) {
         if (this.groups.containsKey(createGroupMessage.getName())) {
-            System.out.println("Server: group '" + createGroupMessage.getName() + "' already exists"); // TODO: maybe
-                                                                                                       // delete
             getSender().tell(new ActionFailed(String.format("%s already exists.", createGroupMessage.getName())),
                     getSelf());
             return;

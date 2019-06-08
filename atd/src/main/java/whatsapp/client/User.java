@@ -34,8 +34,6 @@ public class User extends AbstractActor {
 
   // User actor fields
   String username;
-
-  // HashMap<String, ActorRef> invites = new HashMap<String, ActorRef>();
   ActorRef inviter_ref;
   String group_invited_to;
 
@@ -45,98 +43,87 @@ public class User extends AbstractActor {
   final static Timeout timeout_time = new Timeout(Duration.create(1, TimeUnit.SECONDS));
   LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
-  // List<Pair<String,String>> invites = new ArrayList<Pair<String,String>>(); // TODO: maybe init with constructor?
-
 // Props
   static public Props props() {
     return Props.create(User.class, User::new); // TODO: new User or User::new? whats the difference
   }
-
-
-  
-
-
-
-  //  ------------createReceive - actions handeling------------ 
+  //  ------------createReceive -- handeling client->user actor messages------------ 
   @Override
   public Receive createReceive() {
     return receiveBuilder()
-        // User-related
+        // Client->User messages located at ClientMessages.java
+        // Client->User-related messages
         .match(ClientConnectMessage.class, x -> connectUser(x.username))
         .match(ClientDisconnectMessage.class, x -> disconnectUser())
         .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
         .match(ClientSendFile.class, x -> sendUserFile(x.target_name, x.file))
-        .match(UserTextMessage.class, x -> { log.info(x.getMessage()); })
-        .match(UserLogMessage.class,  x -> { log.info(x.getMessage()); })
-        .match(UserFileMessage.class, x -> printFile(x.source, x.file))
-        .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
-        // Invite-related
-        .match(UpdateTargetAboutInvite.class, x -> gotInvited(x.group_name))
-        .match(ClientInviteAccepted.class, x -> inviteAccepted())
-        .match(ClientInviteDeclined.class, x -> inviteDeclined())
-        .match(UserInviteAccept.class, x -> handleInviteAccepted(x.group_name, x.accepter_name))
-        // Group-related
+        // Client->Group-related messages
         .match(ClientGroupCreate.class, x -> createGroup(x.group_name))
         .match(ClientGroupLeave.class, x -> leaveGroup(x.group_name))
         .match(ClientGroupText.class, x -> sendGroupText(x.group_name, x.text))
         .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.file))
         .match(ClientGroupInvite.class, x -> inviteToGroup(x.group_name, x.target_name))
-        .match(ClientRemoveUser.class, x -> removeFromGroup(x.group_name, x.target_name))
+        .match(ClientGroupUserRem.class, x -> removeFromGroup(x.group_name, x.target_name))
         .match(ClientGroupUserMute.class, x -> muteUser(x.group_name, x.target_name, x.mute_time))
         .match(ClientGroupUserUnmute.class, x -> unmuteUser(x.group_name, x.target_name))
         .match(ClientGroupAddCoAdmin.class, x -> addCoAdmin(x.group_name, x.target_name))
         .match(ClientGroupRemCoAdmin.class, x -> remCoAdmin(x.group_name, x.target_name))
-        // Actions received
-        //  from server
-        .match(ActionSuccess.class, x -> log.info(x.getMessage()))
-        .match(ActionFailed.class, x -> log.info(x.getError()))
-        .match(GroupTextMessage.class, x -> log.info(x.getMessage()))
+        // User-related messages
+        .match(UserLogMessage.class,  x -> { p(x.getMessage()); })
+        .match(UserTextMessage.class, x -> { p(x.getMessage()); })
+        .match(UserFileMessage.class, x -> printFile(x.source, x.file))
+        // Invite-related
+        .match(UpdateTargetAboutInvite.class, x -> gotInvited(x.group_name))
+        .match(ClientInviteAccepted.class, x -> inviteAccepted())
+        .match(ClientInviteDeclined.class, x -> inviteDeclined())
+        .match(UserInviteAccept.class, x -> handleInviteAccepted(x.group_name, x.accepter_name))
+        // Server->User messages
+        .match(ActionSuccess.class, x -> p(x.getMessage()))
+        .match(ActionFailed.class, x -> p(x.getError()))
+        .match(GroupTextMessage.class, x -> p(x.getMessage()))
         .match(GroupFileMessage.class, x -> printFile(x.username, x.file))
         .match(InviteUserMessage.class, x -> sendInviteToTarget(x.getGroupName(), x.getTargetUser()))
         .match(RemoveUserFromGroupMessage.class, x -> handleRemoveTarget(x.getGroupName(), x.getTargetActor()))
         .match(MuteUserMessage.class, x -> handleMuteTarget(x.getGroupName(), x.getTargetActor(), x.getSeconds()))
         .match(UnmuteUserMessage.class, x -> handleUnmuteTarget(x.getGroupName(), x.getTargetActor()))
-        
         .build();
   }
 
-    // handeling createReceive.match functions:
-    private void connectUser(String username){// TODO: Area51
+//  ------------createReceive user functions------------ 
+    private void connectUser(String username){
+      if(username.length() < 1) { p("Already connected as " + username); }
       Future<Object> future = Patterns.ask(managerServer, new ConnectMessage(username, getSelf()), timeout_time); 
       try {
         Object res = Await.result(future, timeout_time.duration());
         if(res instanceof ActionSuccess){
           this.username = username;
-          ActionSuccess actionRes = (ActionSuccess)res;
-          log.info(actionRes.getMessage());
+          p(((ActionSuccess)res).getMessage());
         } else if(res instanceof ActionFailed){
-          ActionFailed actionRes = (ActionFailed)res;
-          log.info(actionRes.getError());
-        }
-        else{
-          log.info("Connection failed!"); // TODO: maybe not needed + check if user is taken error works
+          p(((ActionFailed)res).getError());
         }
       }catch(Exception error){
-        log.info("server is offline!");
+        p("server is offline!");
       }
     }
   
-    private void disconnectUser(){ // TODO: Area51
+    private void disconnectUser(){
+      if(username == "") { p("Can't disconnect if not connected"); }
       Future<Object> future = Patterns.ask(managerServer, new DisconnectMessage(username), timeout_time); 
       try {
         Object res = Await.result(future, timeout_time.duration());
         if(res instanceof ActionSuccess){
           ActionSuccess actionRes = (ActionSuccess)res;
-          log.info(actionRes.getMessage());
+          p(actionRes.getMessage());
+          username = "";
         } else if(res instanceof ActionFailed){
           ActionFailed actionRes = (ActionFailed)res;
-          log.info(actionRes.getError());
+          p(actionRes.getError());
         }
         else{
-          log.info("Connection failed!"); // TODO: maybe not needed + check if user is taken error works
+          p("Connection failed!"); // TODO: maybe not needed + check if user is taken error works
         }
       }catch(Exception error){
-        log.info("server is offline! try again later!");
+        p("server is offline! try again later!");
       }
     }
 
@@ -155,7 +142,7 @@ public class User extends AbstractActor {
       try{
         Path path = Paths.get("whatsapp-file");
         Files.write(path, file_data);
-        log.info(getTime() + "[user][" + source + "]" + "File received: " + path);
+        p(getTime() + "[user][" + source + "]" + "File received: " + path);
       }catch (IOException error) {
         System.out.println("print file error = " + error);
       }
@@ -253,10 +240,6 @@ public class User extends AbstractActor {
     muted_user.tell(new UserLogMessage(tagged_message), getSelf());
   }
 
-  // private void unmuteUser(String group_name, String target_name){
-    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
-  // }
-
   private void addCoAdmin(String group_name, String target_name){
     managerServer.tell(new AddCoAdminMessage(group_name, username, target_name), getSelf());
   }
@@ -269,7 +252,7 @@ public class User extends AbstractActor {
     Future<Object> future = Patterns.ask(managerServer, new GetUserDestMessage(target_name), timeout_time);
     ActorRef targetRef = null;
     try { targetRef = (ActorRef) Await.result(future, timeout_time.duration()); 
-    }catch(Exception error){ log.info("server is offline!"); return null;}
+    }catch(Exception error){ p("server is offline!"); return null;}
     if(targetRef != null && targetRef == ActorRef.noSender()){
       targetRef = null; // for doing nothing
       System.out.println("server is offline! (Target received noSender)");
@@ -282,6 +265,9 @@ public class User extends AbstractActor {
     return ("["+now.getHour()+":"+now.getMinute()+"]");
   }
 
+  void p(String s){
+    System.out.println(s);
+  }
 
 }
 

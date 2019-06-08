@@ -130,7 +130,7 @@ public class Main {
       if      (action.equals("invite")){
         userActor.tell(new ClientGroupInvite(group_name, target_name), ActorRef.noSender());
       }else if(action.equals("remove")){
-        userActor.tell(new ClientRemoveUser(group_name, target_name), ActorRef.noSender());
+        userActor.tell(new ClientGroupUserRem(group_name, target_name), ActorRef.noSender());
       }else if(action.equals("mute")){
         int mute_time = Integer.parseInt(input_array[5]);
         userActor.tell(new ClientGroupUserMute(group_name, target_name, mute_time), ActorRef.noSender());
@@ -151,7 +151,8 @@ public class Main {
   
     
     
-    }else{ // TODO: unknown command, error? what to do in this case..
+    }else{
+      System.out.println("Unknown command: '" + input + "' ,Try again or type 'exit'");
     }
   }
 
