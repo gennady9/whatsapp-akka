@@ -82,10 +82,16 @@ public class GroupActor extends AbstractActor {
         }
 
         this.mutedUsers.remove(target);
+        if(isAuto){
         targetRef.tell(new GroupTextMessage(username, this.groupName, "You have been unmuted! Muting time is up!"),
                 getSelf());
-    }
+        }else{
+            UnmuteUserMessage message = new UnmuteUserMessage(username, target, groupName);
+            message.setTargetActor(targetRef);
+            getSender().tell(message, getSelf());
+        }
 
+    }
 
     private void deleteUserFromGroup(String username, ActorRef actorRef) {
         if (this.admin.equals(username)) {
@@ -245,9 +251,5 @@ public class GroupActor extends AbstractActor {
                 this.getContext().getSystem().dispatcher(), getSender());
 
         getSender().tell(message, getSelf());
-        // message.getTargetActor()
-        //         .tell(new GroupTextMessage(username, this.groupName, String.format(
-        //                 "You have been muted for %d in %s by %s!", message.getSeconds(), this.groupName, username)),
-        //                 getSelf());
     }
 }

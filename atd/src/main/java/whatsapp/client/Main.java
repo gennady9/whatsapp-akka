@@ -131,7 +131,7 @@ public class Main {
         int mute_time = Integer.parseInt(input_array[5]);
         userActor.tell(new ClientGroupUserMute(group_name, target_name, mute_time), ActorRef.noSender());
       }else if(action.equals("unmute")){
-        // userActor.tell(new ClientGroupUserUnmute(group_name, target_name), ActorRef.noSender());
+        userActor.tell(new ClientGroupUserUnmute(group_name, target_name), ActorRef.noSender());
       }
 
     }else if(command.equals("coadmin")){

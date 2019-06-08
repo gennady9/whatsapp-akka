@@ -97,6 +97,7 @@ public class User extends AbstractActor {
         .match(InviteUserMessage.class, x -> sendInviteToTarget(x.getGroupName(), x.getTargetUser()))
         .match(RemoveUserFromGroupMessage.class, x -> handleRemoveTarget(x.getGroupName(), x.getTargetActor()))
         .match(MuteUserMessage.class, x -> handleMuteTarget(x.getGroupName(), x.getTargetActor(), x.getSeconds()))
+        .match(UnmuteUserMessage.class, x -> handleUnmuteTarget(x.getGroupName(), x.getTargetActor()))
         
         .build();
   }
@@ -246,8 +247,17 @@ public class User extends AbstractActor {
   }
 
   private void unmuteUser(String group_name, String target_name){
-    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
+    managerServer.tell(new UnmuteUserMessage(username, target_name, group_name), getSelf());
   }
+  private void handleUnmuteTarget(String group_name, ActorRef muted_user){ // Admin message to removed user
+    String message = "You have been unmuted in "+group_name+" by "+username+"!";
+    String tagged_message = (getTime() + "["+ group_name +"][" + username + "]" + message);
+    muted_user.tell(new UserLogMessage(tagged_message), getSelf());
+  }
+
+  // private void unmuteUser(String group_name, String target_name){
+    // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
+  // }
 
   private void addCoAdmin(String group_name, String target_name){
     // managerServer.tell(new UnMuteUserMessage(group_name, username, target_name), getSelf());
