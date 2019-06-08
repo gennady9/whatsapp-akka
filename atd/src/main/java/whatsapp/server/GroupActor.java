@@ -137,10 +137,7 @@ public class GroupActor extends AbstractActor {
 
         deleteUserFromGroup(message.getTarget(), message.getTargetActor());
 
-        message.getTargetActor()
-                .tell(new GroupTextMessage(message.getUsername(), this.groupName,
-                        String.format("You have been removed from %s by %s!", this.groupName, message.getUsername())),
-                        getSelf());
+        getSender().tell(message, getSelf());
     }
 
     private boolean hasAdminPerms(String username) {

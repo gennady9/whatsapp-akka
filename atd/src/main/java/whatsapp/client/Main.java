@@ -1,7 +1,6 @@
 package whatsapp.client;
 // package internal imports
 import whatsapp.client.ClientMessages.*;
-
 // Akka imports
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -127,7 +126,7 @@ public class Main {
       if      (action.equals("invite")){
         userActor.tell(new ClientGroupInvite(group_name, target_name), ActorRef.noSender());
       }else if(action.equals("remove")){
-
+        userActor.tell(new ClientRemoveUser(group_name, target_name), ActorRef.noSender());
       }else if(action.equals("mute")){
         int mute_time = Integer.parseInt(input_array[5]);
         userActor.tell(new ClientGroupUserMute(group_name, target_name, mute_time), ActorRef.noSender());

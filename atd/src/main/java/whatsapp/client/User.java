@@ -70,7 +70,7 @@ public class User extends AbstractActor {
         .match(UserLogMessage.class,  x -> { log.info(x.getMessage()); })
         .match(UserFileMessage.class, x -> printFile(x.source, x.file))
         .match(ClientSendText.class, x -> sendUserText(x.target_name, x.text))
-        // .match(UserInviteRequest.class, x -> )
+        // Invite-related
         .match(UpdateTargetAboutInvite.class, x -> gotInvited(x.group_name))
         .match(ClientInviteAccepted.class, x -> inviteAccepted())
         .match(ClientInviteDeclined.class, x -> inviteDeclined())
@@ -81,10 +81,12 @@ public class User extends AbstractActor {
         .match(ClientGroupText.class, x -> sendGroupText(x.group_name, x.text))
         .match(ClientGroupFile.class, x -> sendGroupFile(x.group_name, x.file))
         .match(ClientGroupInvite.class, x -> inviteToGroup(x.group_name, x.target_name))
+        .match(ClientRemoveUser.class, x -> removeFromGroup(x.group_name, x.target_name))
         .match(ClientGroupUserMute.class, x -> muteUser(x.group_name, x.target_name, x.mute_time))
         .match(ClientGroupUserUnmute.class, x -> unmuteUser(x.group_name, x.target_name))
         .match(ClientGroupAddCoAdmin.class, x -> addCoAdmin(x.group_name, x.target_name))
         .match(ClientGroupRemCoAdmin.class, x -> remCoAdmin(x.group_name, x.target_name))
+        
         
         // Actions received
         //  from server
@@ -93,6 +95,8 @@ public class User extends AbstractActor {
         .match(GroupTextMessage.class, x -> log.info(x.getMessage()))
         .match(GroupFileMessage.class, x -> printFile(x.username, x.file))
         .match(InviteUserMessage.class, x -> sendInviteToTarget(x.getGroupName(), x.getTargetUser()))
+        .match(RemoveUserFromGroupMessage.class, x -> handleRemoveTarget(x.getGroupName(), x.getTargetActor()))
+
         
         .build();
   }
@@ -167,13 +171,11 @@ public class User extends AbstractActor {
       // targetActorRef.tell(new UserInviteRequest(group_name), getSelf());
       // invites.add(new Pair(group_name, target_name));
       // if user 2 confirm, send approved message UserTextMessage
-      
-      // TODO: add decline message
+      // TODO: add decline message?
     }
 
-    // private void update
 
-
+  // ------------invite handle---------------- 
     // Handle this user getting invited to specific group
     private void gotInvited(String group_name){ // User B
       System.out.println("You have been invited to " + group_name + ", Accept?");
@@ -197,7 +199,7 @@ public class User extends AbstractActor {
       // inviter_ref.tell(new UserInviteDecline(group_invited_to, username), getSelf());
     }
 
-    private void handleInviteAccepted(String group_name, String accepter_name){
+    private void handleInviteAccepted(String group_name, String accepter_name){ // User A
       managerServer.tell(new InviteUserApproveMessage(group_name, accepter_name), getSelf());
       // TODO: consider doing ask and send only if success
       getSender().tell(new UserLogMessage("Welcome to " + group_name + "!"), getSelf());
@@ -222,6 +224,16 @@ public class User extends AbstractActor {
 
   private void inviteToGroup(String group_name, String target_name){
     managerServer.tell(new InviteUserMessage(group_name, target_name, username), getSelf());
+  }
+
+  private void removeFromGroup(String group_name, String target_name){
+    managerServer.tell(new RemoveUserFromGroupMessage(group_name, username, target_name), getSelf());
+  }
+
+  private void handleRemoveTarget(String group_name, ActorRef removed_user){ // Admin message to removed user
+    String message = "You have been removed from "+group_name+" by "+username+"!";
+    String tagged_message = (getTime() + "["+ group_name +"][" + username + "]" + message);
+    removed_user.tell(new UserLogMessage(tagged_message), getSelf());
   }
 
   private void muteUser(String group_name, String target_name, int mute_time){
