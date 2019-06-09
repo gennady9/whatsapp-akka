@@ -69,7 +69,76 @@ and be returned to the matching user/s.
 ### UserInviteAccept
   Invited user update inviter about accepting, initating inviter to send "InviteUserApproveMessage" message to server, and sending "Welcome" message back to invited user
   
-## Client < -- > Server messages (located at common folder)
+## User < -- > Server messages (located at common folder)
+### ConnectMessage
+  User
+  :arrow_right: server(Validating, adding new user) 
+  :arrow_right: (ActionSuccess/Failed)User
+### DisconnectMessage
+  User
+  :arrow_right: server(Validating, removing user) 
+  :arrow_right: all groups (remove User if included) 
+  :arrow_right: (ActionSuccess/Failed) User
 ### ActionSucess / ActionFailed
-  Message sent from server to update client about Successful/failed action, like connection/disconnect etc.
+  Message sent from server to update user about Successful/failed action, included in ConnectMessage & DisconnectMessage
 
+## User <--> Server <--> Group messages (located at common folder)
+### GroupTextMessage / GroupFileMessage :arrow_right:
+  User
+  :arrow_right: server (Validation, group matching)
+  :arrow_right: group 
+  :arrow_right:broadcasting the message text/file to group users
+### CreateGroupMessage
+  User
+  :arrow_right: server (Validation, creates group actor) 
+  :arrow_right: updates user about creating group
+### LeaveGroupMessage
+  User(Admin) 
+  :arrow_right: server (Validation, deletes group) 
+  :arrow_right: broadcast all group users
+  
+  User
+  :arrow_right: server (Validation, group matching) 
+  :arrow_right: group (deletes user) 
+  :arrow_right: updates user about leaving group
+### InviteUserMessage
+  User A(Admin) 
+  :arrow_right: server(Validating, user matching) 
+  :arrow_right: User A(updates B about invitation 
+  :arrow_right: User B
+### InviteUserApproveMessage
+  User A(Admin) 
+  :arrow_right: server(Validating, group matching) 
+  :arrow_right: group(add User B) 
+  :arrow_right: User A (updates B about joining) 
+  :arrow_right: User B
+### RemoveUserFromGroupMessage
+  User A(Admin) 
+  :arrow_right: server(Validating, group matching) 
+  :arrow_right: group(remove User B)
+  :arrow_right: User A (Updates B about being removed) 
+  :arrow_right: User B
+### MuteUserMessage
+  User A(Admin) 
+  :arrow_right: server(Validating, user matching) 
+  :arrow_right: group(mute user B) 
+  :arrow_right: User A (Updates B about being muted) 
+  :arrow_right: User B
+### UnmuteUserMessage
+  User A(Admin) 
+  :arrow_right: server(Validating, user matching) 
+  :arrow_right: group(mute user B) 
+  :arrow_right: User A (Updates B about being unmuted) 
+  :arrow_right: User B
+### AddCoAdminMessage
+  User A(Admin) 
+  :arrow_right: server(Validating, user matching) 
+  :arrow_right: group(coadmin user B) 
+  :arrow_right: User A (Updates B about being coadmin) 
+  :arrow_right: User B
+### RemoveCoAdminMessage
+  User A(Admin) 
+  :arrow_right: server(Validating, user matching) 
+  :arrow_right: group(coadmin user B) 
+  :arrow_right: User A (Updates B about not being coadmin anymore) 
+  :arrow_right: User B
