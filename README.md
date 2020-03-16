@@ -1,9 +1,7 @@
-# Assignment2 ATD192
+# Assignment2
+## Advanced Topics in Functional and Reactive Programming course at BGU university
 ### Implementing whatsapp clone using Akka and Java
-
-Submission by group #93427:
-- Guy Ben-aharon 204075931
-- Gennady Gramovich 314336751
+Client side by Gennady, Server side by Guy (guyb1)
 
 ## <b>Actor model design</b>
 ### 2 Clients, 2 Groups example:
